@@ -41,3 +41,9 @@ jobs:
           tags: ghcr.io/${{ env.IMAGE }}:latest
           context: .
           file: ./docker/production.dockerfile
+
+      - 
+        name: Invoke deployment hook
+        uses: joelwmale/webhook-action@master
+        with:
+          url: ${{ secrets.WEBHOOK_URL }}
