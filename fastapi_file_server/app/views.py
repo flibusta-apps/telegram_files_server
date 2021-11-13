@@ -1,27 +1,30 @@
-from fastapi import File, UploadFile
+from fastapi import File, UploadFile, Depends
 from starlette import status
 from fastapi import APIRouter, HTTPException
 
+from app.models import UploadedFile as UploadedFileDB
 from app.serializers import UploadedFile
-from app import models
 from app.services.file_uploader import FileUploader
+from app.depends import check_token
 
 
 router = APIRouter(
     prefix="/api/v1",
+    dependencies=[Depends(check_token)],
+    tags=["files"]
 )
 
 
 @router.get("/files", response_model=list[UploadedFile])
 async def get_files():
-    return await models.UploadedFile.objects.all()
+    return await UploadedFileDB.objects.all()
 
 
 @router.get("/files/{file_id}", response_model=UploadedFile, responses={
     404: {},
 })
 async def get_file(file_id: int):
-    uploaded_file = await models.UploadedFile.objects.get_or_none(id=file_id)
+    uploaded_file = await UploadedFileDB.objects.get_or_none(id=file_id)
 
     if not uploaded_file:
         raise HTTPException(status.HTTP_404_NOT_FOUND)
@@ -38,7 +41,7 @@ async def upload_file(file: UploadFile = File({})):
     400: {}
 })
 async def delete_file(file_id: int):
-    uploaded_file = await models.UploadedFile.objects.get_or_none(id=file_id)
+    uploaded_file = await UploadedFileDB.objects.get_or_none(id=file_id)
 
     if not uploaded_file:
         raise HTTPException(status.HTTP_400_BAD_REQUEST)

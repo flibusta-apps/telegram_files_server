@@ -6,5 +6,6 @@ __pycache__
 
 .env
 *.session
+*.session-journal
 
 venv
