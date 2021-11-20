@@ -45,11 +45,8 @@ class FileUploader:
         bytes_io.name = self.file.filename
 
         storage = self.get_aiogram_storage()
-        upload_result = await storage.upload(bytes_io)
 
-        self.upload_data = {
-            'file_id': upload_result
-        }
+        self.upload_data = await storage.upload(bytes_io)  # type: ignore
         self.upload_backend = UploadBackends.aiogram
 
         return True
@@ -67,12 +64,8 @@ class FileUploader:
         bytes_io.name = self.file.filename
 
         storage = self.get_telethon_storage()
-        upload_result = await storage.upload(bytes_io)
 
-        self.upload_data = {
-            'chat_id': storage.chat_id,
-            'message_id': upload_result
-        }
+        self.upload_data = await storage.upload(bytes_io)  # type: ignore
         self.upload_backend = UploadBackends.telethon
 
         return True
