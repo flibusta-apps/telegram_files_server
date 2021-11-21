@@ -15,8 +15,10 @@ class FileUploader:
     _aiogram_storage_index = 0
     _telethon_storage_index = 0
 
-    def __init__(self, file: UploadFile) -> None:
+    def __init__(self, file: UploadFile, caption: Optional[str] = None) -> None:
         self.file = file
+        self.caption = caption
+
         self.upload_data: Optional[dict] = None
         self.upload_backend: Optional[UploadBackends] = None
 
@@ -46,7 +48,7 @@ class FileUploader:
 
         storage = self.get_aiogram_storage()
 
-        self.upload_data = await storage.upload(bytes_io)  # type: ignore
+        self.upload_data = await storage.upload(bytes_io, self.caption)  # type: ignore
         self.upload_backend = UploadBackends.aiogram
 
         return True
@@ -65,7 +67,7 @@ class FileUploader:
 
         storage = self.get_telethon_storage()
 
-        self.upload_data = await storage.upload(bytes_io)  # type: ignore
+        self.upload_data = await storage.upload(bytes_io, caption=self.caption)  # type: ignore
         self.upload_backend = UploadBackends.telethon
 
         return True
@@ -111,8 +113,8 @@ class FileUploader:
         return cls.TELETHON_STORAGES[cls._telethon_storage_index]
 
     @classmethod
-    async def upload(cls, file: UploadFile) -> Optional[UploadedFile]:
-        uploader = cls(file)
+    async def upload(cls, file: UploadFile, caption: Optional[str] = None) -> Optional[UploadedFile]:
+        uploader = cls(file, caption)
         upload_result = await uploader._upload()
 
         if not upload_result:

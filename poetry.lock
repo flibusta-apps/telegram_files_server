@@ -564,7 +564,7 @@ full = ["aiofiles", "graphene", "itsdangerous", "jinja2", "python-multipart", "p
 
 [[package]]
 name = "telegram-files-storage"
-version = "1.1.0"
+version = "1.1.1"
 description = "Library for upload/download telegram files"
 category = "main"
 optional = false
@@ -672,7 +672,7 @@ multidict = ">=4.0"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.9"
-content-hash = "cd58f61e0599d137f52a54ed623841bf6139dfd6279031fe3ab577fe9584e3e4"
+content-hash = "1252b47ca248c69e3bd735f5fe938035d58e961e9506b88323410b481e6ed8e6"
 
 [metadata.files]
 aiogram = [
@@ -1367,8 +1367,8 @@ starlette = [
     {file = "starlette-0.14.2.tar.gz", hash = "sha256:7d49f4a27f8742262ef1470608c59ddbc66baf37c148e938c7038e6bc7a998aa"},
 ]
 telegram-files-storage = [
-    {file = "telegram_files_storage-1.1.0-py3-none-any.whl", hash = "sha256:6cb9ceeb6aa67191cc4402f55637bcb2cc3cc311d8a006797a670a9bdc739d56"},
-    {file = "telegram_files_storage-1.1.0.tar.gz", hash = "sha256:a8fe7714426a75b97f5da07af1d4eb267c4dda8dcea5ecd18893b1b9ebdec118"},
+    {file = "telegram_files_storage-1.1.1-py3-none-any.whl", hash = "sha256:5a56a19c6950e7db070110c1e1b43affd59ad15ffde195262cfdb6fbc2476fae"},
+    {file = "telegram_files_storage-1.1.1.tar.gz", hash = "sha256:893776101cb1714bdd69d4d94c01b4b3a22426bfa8afe444f1e2ee94f38044ad"},
 ]
 telethon = [
     {file = "Telethon-1.23.0-py3-none-any.whl", hash = "sha256:60c976f290806445cf9b8468d6dc98c72ad4d8a4ee2ad9de170aaecb1e96cc8e"},

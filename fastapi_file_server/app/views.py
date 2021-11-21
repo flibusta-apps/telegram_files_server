@@ -1,4 +1,6 @@
-from fastapi import File, UploadFile, Depends
+from typing import Optional
+
+from fastapi import File, UploadFile, Depends, Form
 from starlette import status
 from fastapi import APIRouter, HTTPException
 
@@ -40,8 +42,8 @@ async def create_file(data: CreateUploadedFile):
 
 
 @router.post("/upload/", response_model=UploadedFile)
-async def upload_file(file: UploadFile = File({})):
-    return await FileUploader.upload(file)
+async def upload_file(file: UploadFile = File({}), caption: Optional[str] = Form({})):
+    return await FileUploader.upload(file, caption=caption)
 
 
 @router.delete("/{file_id}", response_model=UploadedFile, responses={
