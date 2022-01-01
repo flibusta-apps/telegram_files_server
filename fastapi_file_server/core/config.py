@@ -1,9 +1,11 @@
 from typing import Optional
+
 from pydantic import BaseModel, BaseSettings
 
 
 BotToken = str
-TelethonSessionName= str
+TelethonSessionName = str
+
 
 class TelethonConfig(BaseModel):
     APP_ID: int
@@ -27,8 +29,8 @@ class EnvConfig(BaseSettings):
     TELETHON_SESSIONS: Optional[list[TelethonSessionName]]
 
     class Config:
-        env_file = '.env'
-        env_file_encoding = 'utf-8'
+        env_file = ".env"
+        env_file_encoding = "utf-8"
 
 
 env_config = EnvConfig()

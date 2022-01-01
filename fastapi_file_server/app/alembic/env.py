@@ -1,20 +1,22 @@
 from logging.config import fileConfig
+import os
+import sys
 
 from alembic import context
-import sys, os
-
 from sqlalchemy.engine import create_engine
 
 from core.db import DATABASE_URL
 
 
 myPath = os.path.dirname(os.path.abspath(__file__))
-sys.path.insert(0, myPath + '/../../')
+sys.path.insert(0, myPath + "/../../")
 
 config = context.config
 
 
 from app.models import BaseMeta
+
+
 target_metadata = BaseMeta.metadata
 
 
@@ -52,9 +54,7 @@ def run_migrations_online():
     connectable = create_engine(DATABASE_URL)
 
     with connectable.connect() as connection:
-        context.configure(
-            connection=connection, target_metadata=target_metadata
-        )
+        context.configure(connection=connection, target_metadata=target_metadata)
 
         with context.begin_transaction():
             context.run_migrations()

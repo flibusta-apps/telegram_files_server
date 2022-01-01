@@ -1,19 +1,17 @@
 from typing import Optional
 
-from fastapi import File, UploadFile, Depends, Form
-from starlette import status
-from fastapi import APIRouter, HTTPException
+from fastapi import File, UploadFile, Depends, Form, APIRouter, HTTPException
 
+from starlette import status
+
+from app.depends import check_token
 from app.models import UploadedFile as UploadedFileDB
 from app.serializers import UploadedFile, CreateUploadedFile
 from app.services.file_uploader import FileUploader
-from app.depends import check_token
 
 
 router = APIRouter(
-    prefix="/api/v1/files",
-    dependencies=[Depends(check_token)],
-    tags=["files"]
+    prefix="/api/v1/files", dependencies=[Depends(check_token)], tags=["files"]
 )
 
 
@@ -22,9 +20,13 @@ async def get_files():
     return await UploadedFileDB.objects.all()
 
 
-@router.get("/{file_id}", response_model=UploadedFile, responses={
-    404: {},
-})
+@router.get(
+    "/{file_id}",
+    response_model=UploadedFile,
+    responses={
+        404: {},
+    },
+)
 async def get_file(file_id: int):
     uploaded_file = await UploadedFileDB.objects.get_or_none(id=file_id)
 
@@ -36,9 +38,7 @@ async def get_file(file_id: int):
 
 @router.post("/", response_model=UploadedFile)
 async def create_file(data: CreateUploadedFile):
-    return await UploadedFileDB.objects.create(
-        **data.dict()
-    )
+    return await UploadedFileDB.objects.create(**data.dict())
 
 
 @router.post("/upload/", response_model=UploadedFile)
@@ -46,9 +46,7 @@ async def upload_file(file: UploadFile = File({}), caption: Optional[str] = Form
     return await FileUploader.upload(file, caption=caption)
 
 
-@router.delete("/{file_id}", response_model=UploadedFile, responses={
-    400: {}
-})
+@router.delete("/{file_id}", response_model=UploadedFile, responses={400: {}})
 async def delete_file(file_id: int):
     uploaded_file = await UploadedFileDB.objects.get_or_none(id=file_id)
 

@@ -1,5 +1,5 @@
-from enum import Enum
 from datetime import datetime
+from enum import Enum
 
 import ormar
 
@@ -12,8 +12,8 @@ class BaseMeta(ormar.ModelMeta):
 
 
 class UploadBackends(str, Enum):
-    aiogram = 'aiogram'
-    telethon = 'telethon'
+    aiogram = "aiogram"
+    telethon = "telethon"
 
 
 class UploadedFile(ormar.Model):
