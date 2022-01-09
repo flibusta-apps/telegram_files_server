@@ -6,15 +6,22 @@ from fastapi import UploadFile
 from telegram_files_storage import AiogramFilesStorage, TelethonFilesStorage
 
 from app.models import UploadedFile, UploadBackends
-from core.config import env_config
+from app.services.storages import StoragesContainer
 
 
 class FileUploader:
-    AIOGRAM_STORAGES: list[AiogramFilesStorage] = []
-    TELETHON_STORAGES: list[TelethonFilesStorage] = []
-
     _aiogram_storage_index = 0
     _telethon_storage_index = 0
+
+    @classmethod
+    @property
+    def AIOGRAM_STORAGES(cls) -> list[AiogramFilesStorage]:
+        return StoragesContainer.AIOGRAM_STORAGES
+
+    @classmethod
+    @property
+    def TELETHON_STORAGES(cls) -> list[TelethonFilesStorage]:
+        return StoragesContainer.TELETHON_STORAGES
 
     def __init__(self, file: UploadFile, caption: Optional[str] = None) -> None:
         self.file = file
@@ -80,28 +87,6 @@ class FileUploader:
             backend=self.upload_backend,
             data=self.upload_data,
         )
-
-    @classmethod
-    async def prepare(cls):
-        if env_config.BOT_TOKENS:
-            cls.AIOGRAM_STORAGES: list[AiogramFilesStorage] = [
-                AiogramFilesStorage(env_config.TELEGRAM_CHAT_ID, token)
-                for token in env_config.BOT_TOKENS
-            ]
-
-        if env_config.TELETHON_APP_CONFIG and env_config.TELETHON_SESSIONS:
-            cls.TELETHON_STORAGES: list[TelethonFilesStorage] = [
-                TelethonFilesStorage(
-                    env_config.TELEGRAM_CHAT_ID,
-                    env_config.TELETHON_APP_CONFIG.APP_ID,
-                    env_config.TELETHON_APP_CONFIG.API_HASH,
-                    session,
-                )
-                for session in env_config.TELETHON_SESSIONS
-            ]
-
-        for storage in [*cls.AIOGRAM_STORAGES, *cls.TELETHON_STORAGES]:
-            await storage.prepare()
 
     @classmethod
     def get_aiogram_storage(cls) -> AiogramFilesStorage:

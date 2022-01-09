@@ -1,5 +1,5 @@
-from app.services.file_uploader import FileUploader
+from app.services.storages import StoragesContainer
 
 
 async def on_start():
-    await FileUploader.prepare()
+    await StoragesContainer.prepare()

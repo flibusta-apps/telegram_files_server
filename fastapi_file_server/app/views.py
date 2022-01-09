@@ -1,12 +1,20 @@
 from typing import Optional
 
-from fastapi import File, UploadFile, Depends, Form, APIRouter, HTTPException
-
-from starlette import status
+from fastapi import (
+    File,
+    UploadFile,
+    Depends,
+    Form,
+    APIRouter,
+    HTTPException,
+    Response,
+    status,
+)
 
 from app.depends import check_token
 from app.models import UploadedFile as UploadedFileDB
 from app.serializers import UploadedFile, CreateUploadedFile
+from app.services.file_downloader import FileDownloader
 from app.services.file_uploader import FileUploader
 
 
@@ -44,6 +52,26 @@ async def create_file(data: CreateUploadedFile):
 @router.post("/upload/", response_model=UploadedFile)
 async def upload_file(file: UploadFile = File({}), caption: Optional[str] = Form({})):
     return await FileUploader.upload(file, caption=caption)
+
+
+@router.get("/download_by_file_id/{file_id}")
+async def download_by_file_id(file_id: str):
+    data = await FileDownloader.download_by_file_id(file_id)
+
+    if data is None:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST)
+
+    return Response(data.read())
+
+
+@router.get("/download_by_message/{chat_id}/{message_id}")
+async def download_by_message(chat_id: str, message_id: int):
+    data = await FileDownloader.download_by_message_id(message_id)
+
+    if data is None:
+        raise HTTPException(status.HTTP_400_BAD_REQUEST)
+
+    return Response(data.read())
 
 
 @router.delete("/{file_id}", response_model=UploadedFile, responses={400: {}})
