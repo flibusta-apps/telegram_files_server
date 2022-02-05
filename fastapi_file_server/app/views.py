@@ -83,3 +83,13 @@ async def delete_file(file_id: int):
 
     await uploaded_file.delete()
     return uploaded_file
+
+
+healthcheck_router = APIRouter(
+    prefix="/api/v1", dependencies=[Depends(check_token)], tags=["healthcheck"]
+)
+
+
+@healthcheck_router.get("/healthcheck")
+async def healthcheck():
+    return "Ok"

@@ -16,6 +16,7 @@ asyncpg = "^0.24.0"
 psycopg2 = "^2.9.1"
 python-multipart = "^0.0.5"
 telegram-files-storage = {extras = ["all"], version = "^1.1.1"}
+httpx = "^0.22.0"
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"
