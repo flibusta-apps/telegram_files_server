@@ -12,8 +12,8 @@ class BaseMeta(ormar.ModelMeta):
 
 
 class UploadBackends(str, Enum):
-    aiogram = "aiogram"
-    telethon = "telethon"
+    bot = "bot"
+    user = "user"
 
 
 class UploadedFile(ormar.Model):

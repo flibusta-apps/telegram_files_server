@@ -3,25 +3,23 @@ from typing import Optional
 
 from fastapi import UploadFile
 
-from telegram_files_storage import AiogramFilesStorage, TelethonFilesStorage
-
 from app.models import UploadedFile, UploadBackends
-from app.services.storages import StoragesContainer
+from app.services.storages import StoragesContainer, BotStorage, UserStorage
 
 
 class FileUploader:
-    _aiogram_storage_index = 0
-    _telethon_storage_index = 0
+    _bot_storage_index = 0
+    _user_storage_index = 0
 
     @classmethod
     @property
-    def AIOGRAM_STORAGES(cls) -> list[AiogramFilesStorage]:
-        return StoragesContainer.AIOGRAM_STORAGES
+    def bot_storages(cls) -> list[BotStorage]:
+        return StoragesContainer.BOT_STORAGES
 
     @classmethod
     @property
-    def TELETHON_STORAGES(cls) -> list[TelethonFilesStorage]:
-        return StoragesContainer.TELETHON_STORAGES
+    def user_storages(cls) -> list[UserStorage]:
+        return StoragesContainer.USER_STORAGES
 
     def __init__(self, file: UploadFile, caption: Optional[str] = None) -> None:
         self.file = file
@@ -31,38 +29,16 @@ class FileUploader:
         self.upload_backend: Optional[UploadBackends] = None
 
     async def _upload(self) -> bool:
-        if not self.AIOGRAM_STORAGES and not self.TELETHON_STORAGES:
+        if not self.bot_storages and not self.user_storages:
             raise ValueError("Files storage not exist!")
 
-        if await self._upload_via_aiogram():
+        if await self._upload_via(UploadBackends.bot):
             return True
 
-        return await self._upload_via_telethon()
+        return await self._upload_via(UploadBackends.user)
 
-    async def _upload_via_aiogram(self) -> bool:
-        if not self.AIOGRAM_STORAGES:
-            return False
-
-        data = await self.file.read()
-
-        if isinstance(data, str):
-            data = data.encode()
-
-        if len(data) > 50 * 1000 * 1000:
-            return False
-
-        bytes_io = BytesIO(data)
-        bytes_io.name = self.file.filename
-
-        storage = self.get_aiogram_storage()
-
-        self.upload_data = await storage.upload(bytes_io, self.caption)  # type: ignore
-        self.upload_backend = UploadBackends.aiogram
-
-        return True
-
-    async def _upload_via_telethon(self) -> bool:
-        if not self.TELETHON_STORAGES:
+    async def _upload_via(self, storage_type: UploadBackends) -> bool:
+        if not self.bot_storages:
             return False
 
         data = await self.file.read()
@@ -73,12 +49,18 @@ class FileUploader:
         bytes_io = BytesIO(data)
         bytes_io.name = self.file.filename
 
-        storage = self.get_telethon_storage()
+        if storage_type == UploadBackends.bot:
+            storage = self.get_bot_storage()
+        else:
+            storage = self.get_user_storage()
 
-        self.upload_data = await storage.upload(
-            bytes_io, caption=self.caption
-        )  # type: ignore
-        self.upload_backend = UploadBackends.telethon
+        data = await storage.upload(bytes_io, caption=self.caption)  # type: ignore
+
+        if not data:
+            return False
+
+        self.upload_data = {"chat_id": data[0], "message_id": data[1]}
+        self.upload_backend = storage_type
 
         return True
 
@@ -89,26 +71,26 @@ class FileUploader:
         )
 
     @classmethod
-    def get_aiogram_storage(cls) -> AiogramFilesStorage:
-        if not cls.AIOGRAM_STORAGES:
+    def get_bot_storage(cls) -> BotStorage:
+        if not cls.bot_storages:
             raise ValueError("Aiogram storage not exist!")
 
-        cls._aiogram_storage_index = (cls._aiogram_storage_index + 1) % len(
-            cls.AIOGRAM_STORAGES
-        )
+        bot_storages: list[BotStorage] = cls.bot_storages  # type: ignore
 
-        return cls.AIOGRAM_STORAGES[cls._aiogram_storage_index]
+        cls._bot_storage_index = (cls._bot_storage_index + 1) % len(bot_storages)
+
+        return bot_storages[cls._bot_storage_index]
 
     @classmethod
-    def get_telethon_storage(cls) -> TelethonFilesStorage:
-        if not cls.TELETHON_STORAGES:
+    def get_user_storage(cls) -> UserStorage:
+        if not cls.user_storages:
             raise ValueError("Telethon storage not exists!")
 
-        cls._telethon_storage_index = (cls._telethon_storage_index + 1) % len(
-            cls.TELETHON_STORAGES
-        )
+        user_storages: list[UserStorage] = cls.user_storages  # type: ignore
 
-        return cls.TELETHON_STORAGES[cls._telethon_storage_index]
+        cls._user_storage_index = (cls._user_storage_index + 1) % len(user_storages)
+
+        return user_storages[cls._user_storage_index]
 
     @classmethod
     async def upload(
