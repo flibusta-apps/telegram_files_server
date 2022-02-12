@@ -350,6 +350,29 @@ python-versions = ">=2.7, !=3.0.*, !=3.1.*, !=3.2.*, !=3.3.*"
 dev = ["pre-commit", "tox"]
 
 [[package]]
+name = "prometheus-client"
+version = "0.13.1"
+description = "Python client for the Prometheus monitoring system."
+category = "main"
+optional = false
+python-versions = ">=3.6"
+
+[package.extras]
+twisted = ["twisted"]
+
+[[package]]
+name = "prometheus-fastapi-instrumentator"
+version = "5.7.1"
+description = "Instrument your FastAPI with Prometheus metrics"
+category = "main"
+optional = false
+python-versions = ">=3.6.0,<4.0.0"
+
+[package.dependencies]
+fastapi = ">=0.38.1,<1.0.0"
+prometheus-client = ">=0.8.0,<1.0.0"
+
+[[package]]
 name = "psycopg2"
 version = "2.9.2"
 description = "psycopg2 - Python-PostgreSQL Database Adapter"
@@ -602,7 +625,7 @@ python-versions = "*"
 [metadata]
 lock-version = "1.1"
 python-versions = "^3.9"
-content-hash = "afae087412314722a72e93d3e356d140950880627c81ddf22fe6cef54e7852ce"
+content-hash = "aa58c9a30b09c09b109ae16173a2971c6afb85457d23ab7d2d38138d4cb74bf7"
 
 [metadata.files]
 aiosqlite = [
@@ -948,6 +971,14 @@ packaging = [
 pluggy = [
     {file = "pluggy-0.13.1-py2.py3-none-any.whl", hash = "sha256:966c145cd83c96502c3c3868f50408687b38434af77734af1e9ca461a4081d2d"},
     {file = "pluggy-0.13.1.tar.gz", hash = "sha256:15b2acde666561e1298d71b523007ed7364de07029219b604cf808bfa1c765b0"},
+]
+prometheus-client = [
+    {file = "prometheus_client-0.13.1-py3-none-any.whl", hash = "sha256:357a447fd2359b0a1d2e9b311a0c5778c330cfbe186d880ad5a6b39884652316"},
+    {file = "prometheus_client-0.13.1.tar.gz", hash = "sha256:ada41b891b79fca5638bd5cfe149efa86512eaa55987893becd2c6d8d0a5dfc5"},
+]
+prometheus-fastapi-instrumentator = [
+    {file = "prometheus-fastapi-instrumentator-5.7.1.tar.gz", hash = "sha256:5371f1b494e2b00017a02898d854119b4929025d1a203670b07b3f42dd0b5526"},
+    {file = "prometheus_fastapi_instrumentator-5.7.1-py3-none-any.whl", hash = "sha256:da40ea0df14b0e95d584769747fba777522a8df6a8c47cec2edf798f1fff49b5"},
 ]
 psycopg2 = [
     {file = "psycopg2-2.9.2-cp310-cp310-win32.whl", hash = "sha256:6796ac614412ce374587147150e56d03b7845c9e031b88aacdcadc880e81bb38"},

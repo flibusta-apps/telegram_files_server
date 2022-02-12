@@ -18,6 +18,7 @@ python-multipart = "^0.0.5"
 httpx = "^0.22.0"
 Telethon = "^1.24.0"
 cryptg = "^0.2.post4"
+prometheus-fastapi-instrumentator = "^5.7.1"
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"
