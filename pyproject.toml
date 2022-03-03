@@ -13,12 +13,12 @@ ormar = "^0.10.19"
 alembic = "^1.7.3"
 pydantic = {extras = ["dotenv"], version = "^1.8.2"}
 asyncpg = "^0.24.0"
-psycopg2 = "^2.9.1"
 python-multipart = "^0.0.5"
 httpx = "^0.22.0"
 Telethon = "^1.24.0"
 cryptg = "^0.2.post4"
 prometheus-fastapi-instrumentator = "^5.7.1"
+psycopg2-binary = "^2.9.3"
 
 [tool.poetry.dev-dependencies]
 pytest = "^5.2"

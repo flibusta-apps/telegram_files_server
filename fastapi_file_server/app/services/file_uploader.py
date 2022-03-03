@@ -1,10 +1,24 @@
-from io import BytesIO
-from typing import Optional
+from typing import Optional, Any
 
 from fastapi import UploadFile
 
 from app.models import UploadedFile, UploadBackends
 from app.services.storages import StoragesContainer, BotStorage, UserStorage
+
+
+class Wrapper:
+    def __init__(self, wrapped: Any, filename: str) -> None:
+        self.wrapped = wrapped
+        self.filename = filename
+
+    def seekable(self):
+        return True
+
+    def __getattr__(self, __name: str) -> Any:
+        if __name == "name":
+            return self.filename
+
+        return getattr(self.wrapped, __name)
 
 
 class FileUploader:
@@ -38,23 +52,14 @@ class FileUploader:
         return await self._upload_via(UploadBackends.user)
 
     async def _upload_via(self, storage_type: UploadBackends) -> bool:
-        if not self.bot_storages:
-            return False
-
-        data = await self.file.read()
-
-        if isinstance(data, str):
-            data = data.encode()
-
-        bytes_io = BytesIO(data)
-        bytes_io.name = self.file.filename
-
         if storage_type == UploadBackends.bot:
             storage = self.get_bot_storage()
         else:
             storage = self.get_user_storage()
 
-        data = await storage.upload(bytes_io, caption=self.caption)  # type: ignore
+        wrapped = Wrapper(self.file.file, self.file.filename)
+
+        data = await storage.upload(wrapped, caption=self.caption)
 
         if not data:
             return False

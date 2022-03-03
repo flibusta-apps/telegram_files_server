@@ -1,9 +1,9 @@
 import abc
-from io import BytesIO
 from typing import AsyncIterator, Union, Optional
 
 import telethon.client
 import telethon.errors
+import telethon.hints
 import telethon.tl.types
 
 from core.config import env_config
@@ -23,7 +23,7 @@ class BaseStorage(abc.ABC):
         ...
 
     async def upload(
-        self, file: BytesIO, caption: Optional[str] = None
+        self, file: telethon.hints.FileLike, caption: Optional[str] = None
     ) -> Optional[tuple[Union[str, int], int]]:
         message = await self.client.send_file(
             self.channel_id, file=file, caption=caption
