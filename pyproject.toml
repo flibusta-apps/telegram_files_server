@@ -7,7 +7,7 @@ license = "Apache 2.0"
 
 [tool.poetry.dependencies]
 python = "^3.9"
-fastapi = "^0.68.1"
+fastapi = ">=0.71.0"
 uvicorn = {extras = ["standart"], version = "^0.15.0"}
 ormar = "^0.10.19"
 alembic = "^1.7.3"
