@@ -28,6 +28,8 @@ class EnvConfig(BaseSettings):
     TELETHON_APP_CONFIG: Optional[TelethonConfig]
     TELETHON_SESSIONS: Optional[list[TelethonSessionName]]
 
+    SENTRY_DSN: str
+
     class Config:
         env_file = ".env"
         env_file_encoding = "utf-8"
