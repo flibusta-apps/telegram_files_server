@@ -15,7 +15,6 @@ pydantic = {extras = ["dotenv"], version = "^1.10.2"}
 python-multipart = "^0.0.5"
 httpx = "^0.23.0"
 Telethon = "^1.25.4"
-cryptg = "^0.3.1"
 prometheus-fastapi-instrumentator = "^5.9.1"
 uvloop = "^0.17.0"
 gunicorn = "^20.1.0"
