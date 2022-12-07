@@ -40,7 +40,10 @@ class BaseStorage(abc.ABC):
         if not messages:
             return None
 
-        message: telethon.tl.types.Message = messages[0]
+        message: Optional[telethon.tl.types.Message] = messages[0]
+
+        if message is None:
+            return None
 
         if message.media is None:
             return None
