@@ -1,5 +1,4 @@
-import abc
-from typing import AsyncIterator, Union, Optional
+from typing import AsyncIterator, Optional, Union
 
 import telethon.client
 import telethon.errors
@@ -9,7 +8,7 @@ import telethon.tl.types
 from core.config import env_config
 
 
-class BaseStorage(abc.ABC):
+class BaseStorage:
     def __init__(
         self, channel_id: Union[str, int], app_id: int, api_hash: str, session: str
     ):

@@ -1,5 +1,5 @@
 from app.models import UploadBackends
-from app.services.storages import StoragesContainer, BotStorage, UserStorage
+from app.services.storages import BotStorage, StoragesContainer, UserStorage
 
 
 class FileDownloader:

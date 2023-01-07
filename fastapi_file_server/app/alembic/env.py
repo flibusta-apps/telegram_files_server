@@ -1,4 +1,3 @@
-from logging.config import fileConfig
 import os
 import sys
 
@@ -7,15 +6,13 @@ from sqlalchemy.engine import create_engine
 
 from core.db import DATABASE_URL
 
-
 myPath = os.path.dirname(os.path.abspath(__file__))
 sys.path.insert(0, myPath + "/../../")
 
 config = context.config
 
 
-from app.models import BaseMeta
-
+from app.models import BaseMeta  # noqa: E402
 
 target_metadata = BaseMeta.metadata
 

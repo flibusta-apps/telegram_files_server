@@ -1,14 +1,13 @@
 from typing import Optional
 
-from fastapi import File, UploadFile, Depends, Form, APIRouter, HTTPException, status
+from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
 from fastapi.responses import StreamingResponse
 
 from app.depends import check_token
 from app.models import UploadedFile as UploadedFileDB
-from app.serializers import UploadedFile, CreateUploadedFile
+from app.serializers import CreateUploadedFile, UploadedFile
 from app.services.file_downloader import FileDownloader
 from app.services.file_uploader import FileUploader
-
 
 router = APIRouter(
     prefix="/api/v1/files", dependencies=[Depends(check_token)], tags=["files"]
