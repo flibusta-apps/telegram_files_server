@@ -1,5 +1,6 @@
 from typing import AsyncIterator, Optional, Union
 
+import sentry_sdk
 import telethon.client
 import telethon.errors
 import telethon.hints
@@ -24,9 +25,16 @@ class BaseStorage:
     async def upload(
         self, file: telethon.hints.FileLike, caption: Optional[str] = None
     ) -> Optional[tuple[Union[str, int], int]]:
-        message = await self.client.send_file(
-            self.channel_id, file=file, caption=caption
-        )
+        try:
+            message = await self.client.send_file(
+                self.channel_id, file=file, caption=caption
+            )
+        except telethon.errors.FilePartInvalidError as e:
+            sentry_sdk.capture_exception(e)
+            return None
+        except telethon.errors.PhotoInvalidError as e:
+            sentry_sdk.capture_exception(e)
+            return None
 
         if not message.media:
             return None
