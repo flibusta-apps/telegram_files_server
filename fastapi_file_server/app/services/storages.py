@@ -1,6 +1,5 @@
 from typing import AsyncIterator, Optional, Union
 
-import sentry_sdk
 import telethon.client
 import telethon.errors
 import telethon.hints
@@ -27,13 +26,11 @@ class BaseStorage:
     ) -> Optional[tuple[Union[str, int], int]]:
         try:
             message = await self.client.send_file(
-                self.channel_id, file=file, caption=caption
+                entity=self.channel_id, file=file, caption=caption
             )
-        except telethon.errors.FilePartInvalidError as e:
-            sentry_sdk.capture_exception(e)
+        except telethon.errors.FilePartInvalidError:
             return None
-        except telethon.errors.PhotoInvalidError as e:
-            sentry_sdk.capture_exception(e)
+        except telethon.errors.PhotoInvalidError:
             return None
 
         if not message.media:
