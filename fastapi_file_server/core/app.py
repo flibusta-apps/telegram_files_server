@@ -1,5 +1,6 @@
 from fastapi import FastAPI
 from fastapi.responses import ORJSONResponse
+
 from prometheus_fastapi_instrumentator import Instrumentator
 import sentry_sdk
 
@@ -7,6 +8,7 @@ from app.on_start import on_start
 from app.views import healthcheck_router, router
 from core.config import env_config
 from core.db import database
+
 
 sentry_sdk.init(
     env_config.SENTRY_DSN,
