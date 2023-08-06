@@ -1,4 +1,4 @@
-from typing import AsyncIterator, Optional, Union
+from typing import AsyncIterator, Optional
 
 import telethon.client
 import telethon.errors
@@ -9,9 +9,7 @@ from core.config import env_config
 
 
 class BaseStorage:
-    def __init__(
-        self, channel_id: Union[str, int], app_id: int, api_hash: str, session: str
-    ):
+    def __init__(self, channel_id: int, app_id: int, api_hash: str, session: str):
         self.channel_id = channel_id
 
         self.client = telethon.client.TelegramClient(session, app_id, api_hash)
@@ -26,7 +24,7 @@ class BaseStorage:
         file: telethon.hints.FileLike,
         file_size: int,
         caption: Optional[str] = None,
-    ) -> Optional[tuple[Union[str, int], int]]:
+    ) -> Optional[tuple[int, int]]:
         try:
             uploaded_file = await self.client.upload_file(file, file_size=file_size)
 
@@ -87,7 +85,7 @@ class UserStorage(BaseStorage):
 class BotStorage(BaseStorage):
     def __init__(
         self,
-        channel_id: Union[str, int],
+        channel_id: int,
         app_id: int,
         api_hash: str,
         session: str,

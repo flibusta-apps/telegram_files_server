@@ -10,7 +10,7 @@ class UploadBackend(enum.StrEnum):
 
 
 class Data(TypedDict):
-    chat_id: str | int
+    chat_id: int
     message_id: int
 
 
