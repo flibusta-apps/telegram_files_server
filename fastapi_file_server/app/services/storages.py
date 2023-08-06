@@ -22,15 +22,22 @@ class BaseStorage:
         ...
 
     async def upload(
-        self, file: telethon.hints.FileLike, caption: Optional[str] = None
+        self,
+        file: telethon.hints.FileLike,
+        file_size: int,
+        caption: Optional[str] = None,
     ) -> Optional[tuple[Union[str, int], int]]:
         try:
+            uploaded_file = await self.client.upload_file(file, file_size=file_size)
+
             if caption:
                 message = await self.client.send_file(
-                    entity=self.channel_id, file=file, caption=caption
+                    entity=self.channel_id, file=uploaded_file, caption=caption
                 )
             else:
-                message = await self.client.send_file(entity=self.channel_id, file=file)
+                message = await self.client.send_file(
+                    entity=self.channel_id, file=uploaded_file
+                )
         except telethon.errors.FilePartInvalidError:
             return None
         except telethon.errors.PhotoInvalidError:

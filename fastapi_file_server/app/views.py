@@ -15,8 +15,12 @@ router = APIRouter(
 
 
 @router.post("/upload/", response_model=UploadedFile)
-async def upload_file(file: UploadFile = File({}), caption: Optional[str] = Form({})):
-    return await FileUploader.upload(file, caption=caption)
+async def upload_file(
+    file: UploadFile = File({}),
+    file_size: int = Form({}),
+    caption: Optional[str] = Form({}),
+):
+    return await FileUploader.upload(file, file_size, caption=caption)
 
 
 @router.get("/download_by_message/{chat_id}/{message_id}")

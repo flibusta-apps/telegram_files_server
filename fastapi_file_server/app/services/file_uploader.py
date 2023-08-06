@@ -35,8 +35,11 @@ class FileUploader:
     def user_storages(cls) -> list[UserStorage]:
         return StoragesContainer.USER_STORAGES
 
-    def __init__(self, file: UploadFile, caption: Optional[str] = None) -> None:
+    def __init__(
+        self, file: UploadFile, file_size: int, caption: Optional[str] = None
+    ) -> None:
         self.file = file
+        self.file_size = file_size
         self.caption = caption
 
         self.upload_data: Optional[Data] = None
@@ -61,7 +64,9 @@ class FileUploader:
 
         wrapped = Wrapper(self.file.file, self.file.filename)
 
-        data = await storage.upload(wrapped, caption=self.caption)
+        data = await storage.upload(
+            wrapped, file_size=self.file_size, caption=self.caption
+        )
 
         if not data:
             return False
@@ -101,9 +106,9 @@ class FileUploader:
 
     @classmethod
     async def upload(
-        cls, file: UploadFile, caption: Optional[str] = None
+        cls, file: UploadFile, file_size: int, caption: Optional[str] = None
     ) -> Optional[UploadedFile]:
-        uploader = cls(file, caption)
+        uploader = cls(file, file_size, caption)
         upload_result = await uploader._upload()
 
         if not upload_result:
