@@ -40,6 +40,8 @@ class BaseStorage:
                 )
         except telethon.errors.FilePartInvalidError:
             return None
+        except telethon.errors.FilePartsInvalidError:
+            return None
         except telethon.errors.PhotoInvalidError:
             return None
 
