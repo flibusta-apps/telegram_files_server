@@ -1,24 +1,9 @@
-from typing import Any, BinaryIO, Optional
+from typing import Optional
 
 from fastapi import UploadFile
 
 from app.serializers import Data, UploadBackend, UploadedFile
 from app.services.storages import BotStorage, StoragesContainer, UserStorage
-
-
-class Wrapper(BinaryIO):
-    def __init__(self, wrapped: Any, filename: str) -> None:
-        self.wrapped = wrapped
-        self.filename = filename
-
-    def seekable(self):
-        return True
-
-    def __getattr__(self, __name: str) -> Any:
-        if __name == "name":
-            return self.filename
-
-        return getattr(self.wrapped, __name)
 
 
 class FileUploader:
@@ -62,10 +47,8 @@ class FileUploader:
 
         assert self.file.filename
 
-        wrapped = Wrapper(self.file.file, self.file.filename)
-
         data = await storage.upload(
-            wrapped,
+            self.file,  # type: ignore
             file_size=self.file_size,
             filename=self.file.filename,
             caption=self.caption,
