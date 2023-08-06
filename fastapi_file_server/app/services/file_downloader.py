@@ -1,4 +1,4 @@
-from app.models import UploadBackends
+from app.serializers import UploadBackend
 from app.services.storages import BotStorage, StoragesContainer, UserStorage
 
 
@@ -39,8 +39,8 @@ class FileDownloader:
         return user_storages[cls._user_storage_index]
 
     @classmethod
-    async def _download_via(cls, message_id: int, storage_type: UploadBackends):
-        if storage_type == UploadBackends.bot:
+    async def _download_via(cls, message_id: int, storage_type: UploadBackend):
+        if storage_type == UploadBackend.bot:
             storage = cls.get_bot_storage()
         else:
             storage = cls.get_user_storage()
@@ -52,9 +52,7 @@ class FileDownloader:
         if not cls.bot_storages and not cls.user_storages:
             raise ValueError("Files storage not exist!")
 
-        if (
-            data := await cls._download_via(message_id, UploadBackends.bot)
-        ) is not None:
+        if (data := await cls._download_via(message_id, UploadBackend.bot)) is not None:
             return data
 
-        return await cls._download_via(message_id, UploadBackends.user)
+        return await cls._download_via(message_id, UploadBackend.user)

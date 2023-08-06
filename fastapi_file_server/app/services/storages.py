@@ -25,9 +25,12 @@ class BaseStorage:
         self, file: telethon.hints.FileLike, caption: Optional[str] = None
     ) -> Optional[tuple[Union[str, int], int]]:
         try:
-            message = await self.client.send_file(
-                entity=self.channel_id, file=file, caption=caption
-            )
+            if caption:
+                message = await self.client.send_file(
+                    entity=self.channel_id, file=file, caption=caption
+                )
+            else:
+                message = await self.client.send_file(entity=self.channel_id, file=file)
         except telethon.errors.FilePartInvalidError:
             return None
         except telethon.errors.PhotoInvalidError:

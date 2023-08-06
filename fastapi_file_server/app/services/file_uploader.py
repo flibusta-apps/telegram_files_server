@@ -1,12 +1,12 @@
-from typing import Any, Optional
+from typing import Any, BinaryIO, Optional
 
 from fastapi import UploadFile
 
-from app.models import UploadBackends, UploadedFile
+from app.serializers import Data, UploadBackend, UploadedFile
 from app.services.storages import BotStorage, StoragesContainer, UserStorage
 
 
-class Wrapper:
+class Wrapper(BinaryIO):
     def __init__(self, wrapped: Any, filename: str) -> None:
         self.wrapped = wrapped
         self.filename = filename
@@ -39,23 +39,25 @@ class FileUploader:
         self.file = file
         self.caption = caption
 
-        self.upload_data: Optional[dict] = None
-        self.upload_backend: Optional[UploadBackends] = None
+        self.upload_data: Optional[Data] = None
+        self.upload_backend: Optional[UploadBackend] = None
 
     async def _upload(self) -> bool:
         if not self.bot_storages and not self.user_storages:
             raise ValueError("Files storage not exist!")
 
-        if await self._upload_via(UploadBackends.bot):
+        if await self._upload_via(UploadBackend.bot):
             return True
 
-        return await self._upload_via(UploadBackends.user)
+        return await self._upload_via(UploadBackend.user)
 
-    async def _upload_via(self, storage_type: UploadBackends) -> bool:
-        if storage_type == UploadBackends.bot:
+    async def _upload_via(self, storage_type: UploadBackend) -> bool:
+        if storage_type == UploadBackend.bot:
             storage = self.get_bot_storage()
         else:
             storage = self.get_user_storage()
+
+        assert self.file.filename
 
         wrapped = Wrapper(self.file.file, self.file.filename)
 
@@ -69,11 +71,11 @@ class FileUploader:
 
         return True
 
-    async def _save_to_db(self) -> UploadedFile:
-        return await UploadedFile.objects.create(
-            backend=self.upload_backend,
-            data=self.upload_data,
-        )
+    def get_result(self) -> UploadedFile:
+        assert self.upload_backend is not None
+        assert self.upload_data is not None
+
+        return UploadedFile(backend=self.upload_backend, data=self.upload_data)
 
     @classmethod
     def get_bot_storage(cls) -> BotStorage:
@@ -107,4 +109,4 @@ class FileUploader:
         if not upload_result:
             return None
 
-        return await uploader._save_to_db()
+        return uploader.get_result()

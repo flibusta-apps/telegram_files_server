@@ -1,6 +1,7 @@
 from typing import Optional
 
-from pydantic import BaseModel, BaseSettings
+from pydantic import BaseModel
+from pydantic_settings import BaseSettings
 
 
 BotToken = str
@@ -15,12 +16,6 @@ class TelethonConfig(BaseModel):
 class EnvConfig(BaseSettings):
     API_KEY: str
 
-    POSTGRES_USER: str
-    POSTGRES_PASSWORD: str
-    POSTGRES_HOST: str
-    POSTGRES_PORT: int
-    POSTGRES_DB: str
-
     TELEGRAM_CHAT_ID: int
 
     BOT_TOKENS: Optional[list[BotToken]]
@@ -29,10 +24,6 @@ class EnvConfig(BaseSettings):
     TELETHON_SESSIONS: Optional[list[TelethonSessionName]]
 
     SENTRY_DSN: str
-
-    class Config:
-        env_file = ".env"
-        env_file_encoding = "utf-8"
 
 
 env_config = EnvConfig()
