@@ -1,6 +1,6 @@
-from typing import Optional
+from typing import Annotated, Optional
 
-from fastapi import APIRouter, Depends, File, Form, HTTPException, UploadFile, status
+from fastapi import APIRouter, Depends, Form, HTTPException, UploadFile, status
 from fastapi.responses import StreamingResponse
 
 from app.depends import check_token
@@ -16,9 +16,9 @@ router = APIRouter(
 
 @router.post("/upload/", response_model=UploadedFile)
 async def upload_file(
-    file: UploadFile = File({}),
-    file_size: int = Form({}),
-    caption: Optional[str] = Form({}),
+    file: UploadFile,
+    file_size: Annotated[int, Form()],
+    caption: Annotated[Optional[str], Form()],
 ):
     return await FileUploader.upload(file, file_size, caption=caption)
 
