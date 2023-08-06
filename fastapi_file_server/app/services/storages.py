@@ -22,11 +22,14 @@ class BaseStorage:
     async def upload(
         self,
         file: telethon.hints.FileLike,
+        filename: str,
         file_size: int,
         caption: Optional[str] = None,
     ) -> Optional[tuple[int, int]]:
         try:
-            uploaded_file = await self.client.upload_file(file, file_size=file_size)
+            uploaded_file = await self.client.upload_file(
+                file, file_size=file_size, file_name=filename
+            )
 
             if caption:
                 message = await self.client.send_file(

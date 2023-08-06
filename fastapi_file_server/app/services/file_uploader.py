@@ -65,7 +65,10 @@ class FileUploader:
         wrapped = Wrapper(self.file.file, self.file.filename)
 
         data = await storage.upload(
-            wrapped, file_size=self.file_size, caption=self.caption
+            wrapped,
+            file_size=self.file_size,
+            filename=self.file.filename,
+            caption=self.caption,
         )
 
         if not data:
