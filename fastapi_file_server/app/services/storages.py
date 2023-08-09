@@ -30,6 +30,7 @@ class BaseStorage:
             uploaded_file = await self.client.upload_file(
                 file, file_size=file_size, file_name=filename
             )
+            uploaded_file.name = filename
 
             if caption:
                 message = await self.client.send_file(
