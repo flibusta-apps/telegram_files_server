@@ -25,9 +25,14 @@ class FileUploader:
         return StoragesContainer.USER_STORAGES
 
     def __init__(
-        self, file: UploadFile, file_size: int, caption: Optional[str] = None
+        self,
+        file: UploadFile,
+        filename: str,
+        file_size: int,
+        caption: Optional[str] = None,
     ) -> None:
         self.file = file
+        self.filename = filename
         self.file_size = file_size
         self.caption = caption
 
@@ -49,15 +54,13 @@ class FileUploader:
         else:
             storage = self.get_user_storage()
 
-        assert self.file.filename
-
         setattr(self.file, "seekable", seekable)  # noqa: B010
-        setattr(self.file, "name", self.file.filename)  # noqa: B010
+        setattr(self.file, "name", self.filename)  # noqa: B010
 
         data = await storage.upload(
             self.file,  # type: ignore
             file_size=self.file_size,
-            filename=self.file.filename,
+            filename=self.filename,
             caption=self.caption,
         )
 
@@ -99,9 +102,13 @@ class FileUploader:
 
     @classmethod
     async def upload(
-        cls, file: UploadFile, file_size: int, caption: Optional[str] = None
+        cls,
+        file: UploadFile,
+        filename: str,
+        file_size: int,
+        caption: Optional[str] = None,
     ) -> Optional[UploadedFile]:
-        uploader = cls(file, file_size, caption)
+        uploader = cls(file, filename, file_size, caption)
         upload_result = await uploader._upload()
 
         if not upload_result:
