@@ -52,6 +52,7 @@ class FileUploader:
         assert self.file.filename
 
         setattr(self.file, "seekable", seekable)  # noqa: B010
+        setattr(self.file, "name", self.file.filename)  # noqa: B010
 
         data = await storage.upload(
             self.file,  # type: ignore
