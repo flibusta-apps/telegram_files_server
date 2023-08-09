@@ -7,7 +7,7 @@ from app.services.storages import BotStorage, StoragesContainer, UserStorage
 
 
 def seekable(*args, **kwargs):
-    return False
+    return True
 
 
 class FileUploader:
@@ -54,13 +54,11 @@ class FileUploader:
         else:
             storage = self.get_user_storage()
 
-        print(self.file)
-        print(self.filename)
-
-        file = self.file.file
+        file = self.file
+        setattr(file, "seekable", seekable)  # noqa: B010
 
         data = await storage.upload(
-            file,
+            file,  # type: ignore
             file_size=self.file_size,
             filename=self.filename,
             caption=self.caption,
