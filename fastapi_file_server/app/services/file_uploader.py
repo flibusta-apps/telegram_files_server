@@ -6,6 +6,10 @@ from app.serializers import Data, UploadBackend, UploadedFile
 from app.services.storages import BotStorage, StoragesContainer, UserStorage
 
 
+def seekable(*args, **kwargs):
+    return True
+
+
 class FileUploader:
     _bot_storage_index = 0
     _user_storage_index = 0
@@ -46,6 +50,8 @@ class FileUploader:
             storage = self.get_user_storage()
 
         assert self.file.filename
+
+        setattr(self.file, "seekable", seekable)  # noqa: B010
 
         data = await storage.upload(
             self.file,  # type: ignore
