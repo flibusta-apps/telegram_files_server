@@ -54,11 +54,11 @@ class FileUploader:
         else:
             storage = self.get_user_storage()
 
-        setattr(self.file, "seekable", seekable)  # noqa: B010
-        setattr(self.file, "name", self.filename)  # noqa: B010
+        file = self.file.file
+        setattr(file, "name", self.filename)  # noqa: B010
 
         data = await storage.upload(
-            self.file,  # type: ignore
+            file,
             file_size=self.file_size,
             filename=self.filename,
             caption=self.caption,

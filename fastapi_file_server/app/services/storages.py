@@ -30,15 +30,17 @@ class BaseStorage:
             uploaded_file = await self.client.upload_file(
                 file, file_size=file_size, file_name=filename
             )
-            uploaded_file.name = filename
 
             if caption:
                 message = await self.client.send_file(
-                    entity=self.channel_id, file=uploaded_file, caption=caption
+                    entity=self.channel_id,
+                    file=uploaded_file,
+                    caption=caption,
+                    force_document=True,
                 )
             else:
                 message = await self.client.send_file(
-                    entity=self.channel_id, file=uploaded_file
+                    entity=self.channel_id, file=uploaded_file, force_document=True
                 )
         except telethon.errors.FilePartInvalidError:
             return None
