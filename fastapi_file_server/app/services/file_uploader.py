@@ -54,6 +54,7 @@ class FileUploader:
         else:
             storage = self.get_user_storage()
 
+        print(self.file)
         print(self.filename)
 
         file = self.file.file
