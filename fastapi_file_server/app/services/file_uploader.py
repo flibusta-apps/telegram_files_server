@@ -54,8 +54,9 @@ class FileUploader:
         else:
             storage = self.get_user_storage()
 
+        print(self.filename)
+
         file = self.file.file
-        setattr(file, "name", self.filename)  # noqa: B010
 
         data = await storage.upload(
             file,
