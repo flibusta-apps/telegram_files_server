@@ -7,7 +7,7 @@ from app.services.storages import BotStorage, StoragesContainer, UserStorage
 
 
 def seekable(*args, **kwargs):
-    return True
+    return False
 
 
 class FileUploader:
