@@ -1,7 +1,10 @@
 from typing import Optional
 
 from pydantic import BaseModel
-from pydantic_settings import BaseSettings
+from pydantic_settings import (
+    BaseSettings,
+    SettingsConfigDict,
+)
 
 
 BotToken = str
@@ -18,10 +21,10 @@ class EnvConfig(BaseSettings):
 
     TELEGRAM_CHAT_ID: int
 
-    BOT_TOKENS: Optional[list[BotToken]]
+    BOT_TOKENS: Optional[list[BotToken]] = None
 
-    TELETHON_APP_CONFIG: Optional[TelethonConfig]
-    TELETHON_SESSIONS: Optional[list[TelethonSessionName]]
+    TELETHON_APP_CONFIG: Optional[TelethonConfig] = None
+    TELETHON_SESSIONS: Optional[list[TelethonSessionName]] = None
 
     SENTRY_DSN: str
 

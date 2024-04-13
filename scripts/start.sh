@@ -1,6 +1,8 @@
 #! /usr/bin/env sh
 
-export $(/env.sh)
+/env.sh > ./.env
+. ./.env
+rm ./.env
 
 cd /app
 mkdir -p prometheus
