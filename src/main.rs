@@ -29,7 +29,7 @@ async fn main() {
 
     tracing_subscriber::registry()
         .with(tracing_subscriber::fmt::layer().with_target(false))
-        .with(filter::LevelFilter::INFO)
+        // .with(filter::LevelFilter::INFO)
         .with(sentry_layer)
         .init();
 
