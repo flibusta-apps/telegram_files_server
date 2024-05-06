@@ -90,12 +90,7 @@ async fn upload(data: TypedMultipart<UploadFileRequest>) -> impl IntoResponse {
 }
 
 async fn download(Path((chat_id, message_id)): Path<(i64, i32)>) -> impl IntoResponse {
-    let downloader = match download_file(chat_id, message_id).await {
-        Some(v) => v,
-        None => return StatusCode::BAD_REQUEST.into_response()
-    };
-
-    let file = match downloader.get_file().await {
+    let file = match download_file(chat_id, message_id).await {
         Ok(v) => v,
         Err(err) => {
             log::error!("{}", err);

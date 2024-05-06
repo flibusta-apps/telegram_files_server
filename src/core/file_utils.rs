@@ -28,7 +28,7 @@ pub struct MessageInfo {
 
 pub static TEMP_FILES_CACHE: Lazy<Cache<i32, MessageId>> = Lazy::new(|| {
     Cache::builder()
-        .time_to_idle(std::time::Duration::from_secs(5 * 60 * 60))
+        .time_to_idle(std::time::Duration::from_secs(16))
         .max_capacity(4098)
         .async_eviction_listener(|_data_id, message_id, _cause| {
             Box::pin(async move {
@@ -69,7 +69,7 @@ pub async fn upload_file(
     }
 }
 
-pub async fn download_file(chat_id: i64, message_id: i32) -> Option<BotDownloader> {
+pub async fn download_file(chat_id: i64, message_id: i32) -> Result<File, Box<dyn Error>> {
     let bot = ROUND_ROBIN_BOT.get_bot();
 
     let forwarded_message = match bot
@@ -83,37 +83,21 @@ pub async fn download_file(chat_id: i64, message_id: i32) -> Option<BotDownloade
         Ok(v) => v,
         Err(err) => {
             log::error!("Error: {}", err);
-            return None;
+            return Err(Box::new(err));
         }
     };
 
-    let file_id = match forwarded_message.document() {
-        Some(v) => v.file.id.clone(),
-        None => {
-            log::error!("Document not found!");
-            return None;
-        }
-    };
+    let file_id = forwarded_message.document().unwrap().file.id.clone();
 
-    TEMP_FILES_CACHE.insert(message_id, forwarded_message.id.clone()).await;
+    TEMP_FILES_CACHE.insert(message_id, forwarded_message.id).await;
 
     let path = match bot.get_file(file_id.clone()).await {
         Ok(v) => v.path,
         Err(err) => {
             log::error!("Error: {}", err);
-            return None;
+            return Err(Box::new(err));
         }
     };
 
-    log::info!("File path: {}", path);
-
-    return Some(BotDownloader(path));
-}
-
-pub struct BotDownloader(String);
-
-impl BotDownloader {
-    pub async fn get_file(self) -> Result<File, Box<dyn Error>> {
-        Ok(File::open(self.0).await?)
-    }
+    Ok(File::open(path).await?)
 }
