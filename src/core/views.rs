@@ -88,8 +88,7 @@ async fn upload(data: TypedMultipart<UploadFileRequest>) -> impl IntoResponse {
     result.unwrap()
 }
 
-
-async fn download(Path(chat_id): Path<i64>, Path(message_id): Path<i32>) -> impl IntoResponse {
+async fn download(Path((chat_id, message_id)): Path<(i64, i32)>) -> impl IntoResponse {
     let downloader = download_file(chat_id, message_id).await;
 
     let data = match downloader {

@@ -9,13 +9,12 @@ use teloxide::{
     types::{ChatId, InputFile, MessageId},
     Bot,
 };
-use tracing::log;
 use tokio::io::AsyncRead;
 use tokio_util::compat::FuturesAsyncReadCompatExt;
+use tracing::log;
 
-use crate::config::CONFIG;
 use super::bot::ROUND_ROBIN_BOT;
-
+use crate::config::CONFIG;
 
 #[derive(Serialize)]
 pub struct UploadedFile {
@@ -28,7 +27,6 @@ pub struct MessageInfo {
     pub chat_id: i64,
     pub message_id: i32,
 }
-
 
 pub async fn upload_file(
     file: Bytes,
@@ -58,37 +56,39 @@ pub async fn upload_file(
 pub async fn download_file(chat_id: i64, message_id: i32) -> Option<BotDownloader> {
     let bot = ROUND_ROBIN_BOT.get_bot();
 
-    let result = bot
+    let forwarded_message = match bot
         .forward_message(
             ChatId(CONFIG.telegram_temp_chat_id),
             ChatId(chat_id),
             MessageId(message_id),
         )
-        .await;
-
-    match result {
-        Ok(message) => {
-            let file_id = match message.document() {
-                Some(v) => v.file.id.clone(),
-                None => {
-                    log::error!("Document not found!");
-                    return None;
-                }
-            };
-            let path = match bot.get_file(file_id.clone()).await {
-                Ok(v) => v.path,
-                Err(err) => {
-                    log::error!("Error: {}", err);
-                    return None;
-                },
-            };
-
-            return Some(BotDownloader::new(bot, path));
+        .await
+    {
+        Ok(v) => v,
+        Err(err) => {
+            log::error!("Error: {}", err);
+            return None;
         }
-        Err(_) => None,
-    }
-}
+    };
 
+    let file_id = match forwarded_message.document() {
+        Some(v) => v.file.id.clone(),
+        None => {
+            log::error!("Document not found!");
+            return None;
+        }
+    };
+    
+    let path = match bot.get_file(file_id.clone()).await {
+        Ok(v) => v.path,
+        Err(err) => {
+            log::error!("Error: {}", err);
+            return None;
+        }
+    };
+
+    return Some(BotDownloader::new(bot, path));
+}
 
 pub struct BotDownloader {
     bot: Bot,
@@ -107,7 +107,7 @@ impl BotDownloader {
             stream
                 .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))
                 .into_async_read()
-                .compat()
+                .compat(),
         )
     }
 }
