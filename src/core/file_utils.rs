@@ -72,7 +72,13 @@ pub async fn download_file(chat_id: i64, message_id: i32) -> Option<BotDownloade
                 return None;
             }
 
-            let file_id = message.document().unwrap().file.id.clone();
+            let file_id = match message.document() {
+                Some(v) => v.file.id.clone(),
+                None => {
+                    log::error!("Document not found!");
+                    return None;
+                }
+            };
             let path = match bot.get_file(file_id.clone()).await {
                 Ok(v) => v.path,
                 Err(err) => {
