@@ -4,7 +4,7 @@ mod core;
 use std::{net::SocketAddr, str::FromStr};
 use sentry::{integrations::debug_images::DebugImagesIntegration, types::Dsn, ClientOptions};
 use sentry_tracing::EventFilter;
-use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
+use tracing_subscriber::{filter, layer::SubscriberExt, util::SubscriberInitExt};
 
 use crate::core::views::get_router;
 
@@ -28,7 +28,8 @@ async fn main() {
     });
 
     tracing_subscriber::registry()
-        .with(tracing_subscriber::fmt::layer())
+        .with(tracing_subscriber::fmt::layer().with_target(false))
+        .with(filter::LevelFilter::WARN)
         .with(sentry_layer)
         .init();
 
