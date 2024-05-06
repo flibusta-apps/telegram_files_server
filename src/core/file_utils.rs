@@ -32,7 +32,7 @@ pub struct MessageInfo {
 
 pub static TEMP_FILES_CACHE: Lazy<Cache<i32, MessageId>> = Lazy::new(|| {
     Cache::builder()
-        .time_to_idle(std::time::Duration::from_secs(16))
+        .time_to_idle(std::time::Duration::from_secs(5 * 60 * 60))
         .max_capacity(4098)
         .async_eviction_listener(|_data_id, message_id, _cause| {
             Box::pin(async move {
@@ -98,7 +98,7 @@ pub async fn download_file(chat_id: i64, message_id: i32) -> Option<BotDownloade
             return None;
         }
     };
-    
+
     TEMP_FILES_CACHE.insert(message_id, forwarded_message.id.clone()).await;
 
     let path = match bot.get_file(file_id.clone()).await {

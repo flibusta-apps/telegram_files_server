@@ -93,7 +93,7 @@ async fn download(Path((chat_id, message_id)): Path<(i64, i32)>) -> impl IntoRes
 
     let data = match downloader {
         Some(v) => v.get_async_read(),
-        None => return StatusCode::NOT_FOUND.into_response()
+        None => return StatusCode::BAD_REQUEST.into_response()
     };
 
     let reader = ReaderStream::new(data);
