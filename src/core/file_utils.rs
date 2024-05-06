@@ -1,17 +1,13 @@
-use std::pin::Pin;
+use std::error::Error;
 
 use axum::body::Bytes;
-use futures::TryStreamExt;
 use once_cell::sync::Lazy;
 use serde::Serialize;
 use teloxide::{
-    net::Download,
     requests::Requester,
     types::{ChatId, InputFile, MessageId, Recipient},
-    Bot,
 };
-use tokio::io::AsyncRead;
-use tokio_util::compat::FuturesAsyncReadCompatExt;
+use tokio::fs::File;
 use tracing::log;
 use moka::future::Cache;
 
@@ -111,27 +107,13 @@ pub async fn download_file(chat_id: i64, message_id: i32) -> Option<BotDownloade
 
     log::info!("File path: {}", path);
 
-    return Some(BotDownloader::new(bot, path));
+    return Some(BotDownloader(path));
 }
 
-pub struct BotDownloader {
-    bot: Bot,
-    file_path: String,
-}
+pub struct BotDownloader(String);
 
 impl BotDownloader {
-    pub fn new(bot: Bot, file_path: String) -> Self {
-        Self { bot, file_path }
-    }
-
-    pub fn get_async_read(self) -> Pin<Box<dyn AsyncRead + Send>> {
-        let stream = self.bot.download_file_stream(&self.file_path);
-
-        Box::pin(
-            stream
-                .map_err(|e| std::io::Error::new(std::io::ErrorKind::Other, e))
-                .into_async_read()
-                .compat(),
-        )
+    pub async fn get_file(self) -> Result<File, Box<dyn Error>> {
+        Ok(File::open(self.0).await?)
     }
 }

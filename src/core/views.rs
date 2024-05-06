@@ -12,6 +12,7 @@ use axum_typed_multipart::{TryFromMultipart, TypedMultipart};
 use tokio_util::io::ReaderStream;
 use tower_http::trace::{self, TraceLayer};
 use tracing::Level;
+use tracing::log;
 
 use crate::config::CONFIG;
 
@@ -89,14 +90,20 @@ async fn upload(data: TypedMultipart<UploadFileRequest>) -> impl IntoResponse {
 }
 
 async fn download(Path((chat_id, message_id)): Path<(i64, i32)>) -> impl IntoResponse {
-    let downloader = download_file(chat_id, message_id).await;
-
-    let data = match downloader {
-        Some(v) => v.get_async_read(),
+    let downloader = match download_file(chat_id, message_id).await {
+        Some(v) => v,
         None => return StatusCode::BAD_REQUEST.into_response()
     };
 
-    let reader = ReaderStream::new(data);
+    let file = match downloader.get_file().await {
+        Ok(v) => v,
+        Err(err) => {
+            log::error!("{}", err);
+            return StatusCode::BAD_REQUEST.into_response()
+        }
+    } ;
+
+    let reader = ReaderStream::new(file);
 
     axum::body::Body::from_stream(reader).into_response()
 }
