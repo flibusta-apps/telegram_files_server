@@ -44,7 +44,7 @@ pub async fn get_router() -> Router {
     let (prometheus_layer, metric_handle) = PrometheusMetricLayer::pair();
 
     let app_router = Router::new()
-        .route("/upload", post(upload))
+        .route("/upload/", post(upload))
         .route("/download_by_message/:chat_id/:message_id", get(download))
         .layer(DefaultBodyLimit::max(BODY_LIMIT))
         .layer(middleware::from_fn(auth))
@@ -90,7 +90,7 @@ async fn upload(data: TypedMultipart<UploadFileRequest>) -> impl IntoResponse {
 
 
 async fn download(Path(chat_id): Path<i64>, Path(message_id): Path<i32>) -> impl IntoResponse {
-    let downloader = download_file(chat_id, message_id).await; 
+    let downloader = download_file(chat_id, message_id).await;
 
     let data = match downloader {
         Some(v) => v.get_async_read(),
@@ -98,6 +98,6 @@ async fn download(Path(chat_id): Path<i64>, Path(message_id): Path<i32>) -> impl
     };
 
     let reader = ReaderStream::new(data);
-    
+
     axum::body::Body::from_stream(reader).into_response()
 }
