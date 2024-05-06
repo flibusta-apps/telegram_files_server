@@ -109,6 +109,8 @@ pub async fn download_file(chat_id: i64, message_id: i32) -> Option<BotDownloade
         }
     };
 
+    log::info!("File path: {}", path);
+
     return Some(BotDownloader::new(bot, path));
 }
 
