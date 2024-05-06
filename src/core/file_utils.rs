@@ -68,10 +68,6 @@ pub async fn download_file(chat_id: i64, message_id: i32) -> Option<BotDownloade
 
     match result {
         Ok(message) => {
-            if message.document() == None {
-                return None;
-            }
-
             let file_id = match message.document() {
                 Some(v) => v.file.id.clone(),
                 None => {

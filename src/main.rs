@@ -3,6 +3,7 @@ mod core;
 
 use std::{net::SocketAddr, str::FromStr};
 use sentry::{integrations::debug_images::DebugImagesIntegration, types::Dsn, ClientOptions};
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt};
 
 use crate::core::views::get_router;
 
@@ -20,9 +21,9 @@ async fn main() {
 
     let _guard = sentry::init(options);
 
-    tracing_subscriber::fmt()
-        .with_target(false)
-        .compact()
+    tracing_subscriber::registry()
+        .with(tracing_subscriber::fmt::layer())
+        .with(sentry_tracing::layer())
         .init();
 
     let addr = SocketAddr::from(([0, 0, 0, 0], 8080));
