@@ -2,16 +2,18 @@ use std::pin::Pin;
 
 use axum::body::Bytes;
 use futures::TryStreamExt;
+use once_cell::sync::Lazy;
 use serde::Serialize;
 use teloxide::{
     net::Download,
     requests::Requester,
-    types::{ChatId, InputFile, MessageId},
+    types::{ChatId, InputFile, MessageId, Recipient},
     Bot,
 };
 use tokio::io::AsyncRead;
 use tokio_util::compat::FuturesAsyncReadCompatExt;
 use tracing::log;
+use moka::future::Cache;
 
 use super::bot::ROUND_ROBIN_BOT;
 use crate::config::CONFIG;
@@ -27,6 +29,24 @@ pub struct MessageInfo {
     pub chat_id: i64,
     pub message_id: i32,
 }
+
+pub static TEMP_FILES_CACHE: Lazy<Cache<i32, MessageId>> = Lazy::new(|| {
+    Cache::builder()
+        .time_to_idle(std::time::Duration::from_secs(16))
+        .max_capacity(4098)
+        .async_eviction_listener(|_data_id, message_id, _cause| {
+            Box::pin(async move {
+                let bot = ROUND_ROBIN_BOT.get_bot();
+                let _ = bot
+                    .delete_message(
+                        Recipient::Id(ChatId(CONFIG.telegram_temp_chat_id)),
+                        message_id,
+                    )
+                    .await;
+            })
+        })
+        .build()
+});
 
 pub async fn upload_file(
     file: Bytes,
@@ -79,6 +99,8 @@ pub async fn download_file(chat_id: i64, message_id: i32) -> Option<BotDownloade
         }
     };
     
+    TEMP_FILES_CACHE.insert(message_id, forwarded_message.id.clone()).await;
+
     let path = match bot.get_file(file_id.clone()).await {
         Ok(v) => v.path,
         Err(err) => {
