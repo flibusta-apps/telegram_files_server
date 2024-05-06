@@ -9,6 +9,7 @@ use teloxide::{
     types::{ChatId, InputFile, MessageId},
     Bot,
 };
+use tracing::log;
 use tokio::io::AsyncRead;
 use tokio_util::compat::FuturesAsyncReadCompatExt;
 
@@ -68,11 +69,17 @@ pub async fn download_file(chat_id: i64, message_id: i32) -> Option<BotDownloade
     match result {
         Ok(message) => {
             if message.document() == None {
-                return Option::None;
+                return None;
             }
 
             let file_id = message.document().unwrap().file.id.clone();
-            let path = bot.get_file(file_id.clone()).await.unwrap().path;
+            let path = match bot.get_file(file_id.clone()).await {
+                Ok(v) => v.path,
+                Err(err) => {
+                    log::error!("Error: {}", err);
+                    return None;
+                },
+            };
 
             return Some(BotDownloader::new(bot, path));
         }
