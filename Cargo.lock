@@ -2051,6 +2051,7 @@ dependencies = [
  "once_cell",
  "reqwest 0.11.23",
  "sentry",
+ "sentry-tracing",
  "serde",
  "serde_json",
  "teloxide",
