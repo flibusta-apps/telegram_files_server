@@ -94,12 +94,12 @@ async fn download(Path((chat_id, message_id)): Path<(i64, i32)>) -> impl IntoRes
         Ok(v) => {
             match v {
                 Some(v) => v,
-                None => return StatusCode::BAD_REQUEST.into_response(),
+                None => return StatusCode::NO_CONTENT.into_response(),
             }
         },
         Err(err) => {
             log::error!("{}", err);
-            return StatusCode::BAD_REQUEST.into_response()
+            return StatusCode::INTERNAL_SERVER_ERROR.into_response()
         }
     };
 
