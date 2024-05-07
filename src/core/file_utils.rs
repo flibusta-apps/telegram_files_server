@@ -69,7 +69,7 @@ pub async fn upload_file(
     }
 }
 
-pub async fn download_file(chat_id: i64, message_id: i32) -> Result<File, Box<dyn Error>> {
+pub async fn download_file(chat_id: i64, message_id: i32) -> Result<Option<File>, Box<dyn Error>> {
     let bot = ROUND_ROBIN_BOT.get_bot();
 
     let forwarded_message = match bot
@@ -82,6 +82,12 @@ pub async fn download_file(chat_id: i64, message_id: i32) -> Result<File, Box<dy
     {
         Ok(v) => v,
         Err(err) => {
+            if let teloxide::RequestError::Api(ref err) = err {
+                if let teloxide::ApiError::MessageToForwardNotFound = err {
+                    return Ok(None);
+                }
+            }
+
             log::error!("Error: {}", err);
             return Err(Box::new(err));
         }
@@ -99,5 +105,5 @@ pub async fn download_file(chat_id: i64, message_id: i32) -> Result<File, Box<dy
         }
     };
 
-    Ok(File::open(path).await?)
+    Ok(Some(File::open(path).await?))
 }
