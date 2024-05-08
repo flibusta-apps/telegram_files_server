@@ -1,7 +1,7 @@
-use std::sync::{
+use std::{sync::{
     atomic::{AtomicUsize, Ordering},
     Arc,
-};
+}, time::Duration};
 
 use once_cell::sync::Lazy;
 use teloxide::Bot;
@@ -23,8 +23,18 @@ impl RoundRobinBot {
 
     pub fn get_bot(&self) -> Bot {
         let index = self.current_index.fetch_add(1, Ordering::Relaxed) % self.bot_tokens.len();
-        Bot::new(self.bot_tokens[index].clone())
-            .set_api_url(reqwest::Url::parse(CONFIG.telegram_api_url.as_str()).unwrap())
+
+        let client = reqwest::Client::builder()
+            .connect_timeout(Duration::from_secs(5))
+            .timeout(Duration::from_secs(5 * 60))
+            .tcp_nodelay(true)
+            .build()
+            .unwrap();
+
+        Bot::with_client(
+            self.bot_tokens[index].clone(),
+            client
+        ).set_api_url(reqwest::Url::parse(CONFIG.telegram_api_url.as_str()).unwrap())
     }
 }
 
