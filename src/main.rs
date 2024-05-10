@@ -1,12 +1,36 @@
 mod config;
 mod core;
 
+use core::file_utils::clean_files;
 use std::{net::SocketAddr, str::FromStr};
 use sentry::{integrations::debug_images::DebugImagesIntegration, types::Dsn, ClientOptions};
 use sentry_tracing::EventFilter;
 use tracing_subscriber::{filter, layer::SubscriberExt, util::SubscriberInitExt};
 
 use crate::core::views::get_router;
+
+
+async fn start_app() {
+    let addr = SocketAddr::from(([0, 0, 0, 0], 8080));
+
+    let app = get_router().await;
+
+    println!("Start webserver...");
+    let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
+    axum::serve(listener, app).await.unwrap();
+    println!("Webserver shutdown...");
+}
+
+
+async fn cron_jobs() {
+    let mut interval = tokio::time::interval(std::time::Duration::from_secs(5 * 60));
+
+    loop {
+        interval.tick().await;
+
+        let _ = clean_files().await;
+    }
+}
 
 
 #[tokio::main]
@@ -33,12 +57,5 @@ async fn main() {
         .with(sentry_layer)
         .init();
 
-    let addr = SocketAddr::from(([0, 0, 0, 0], 8080));
-
-    let app = get_router().await;
-
-    println!("Start webserver...");
-    let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
-    axum::serve(listener, app).await.unwrap();
-    println!("Webserver shutdown...");
+    tokio::join![cron_jobs(), start_app()];
 }

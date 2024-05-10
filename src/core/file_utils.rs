@@ -44,6 +44,7 @@ pub static TEMP_FILES_CACHE: Lazy<Cache<i32, MessageId>> = Lazy::new(|| {
         .build()
 });
 
+
 pub async fn upload_file(
     file: Bytes,
     filename: String,
@@ -68,6 +69,7 @@ pub async fn upload_file(
         Err(err) => Err(err.to_string()),
     }
 }
+
 
 pub async fn download_file(chat_id: i64, message_id: i32) -> Result<Option<File>, Box<dyn Error>> {
     let bot = ROUND_ROBIN_BOT.get_bot();
@@ -106,4 +108,31 @@ pub async fn download_file(chat_id: i64, message_id: i32) -> Result<Option<File>
     };
 
     Ok(Some(File::open(path).await?))
+}
+
+
+pub async fn clean_files() -> Result<(), Box<dyn Error>> {
+    let bots_folder = "/var/lib/telegram-bot-api/";
+    let documents_folder_name = "documents";
+
+    let mut bots_folder = tokio::fs::read_dir(bots_folder).await.unwrap();
+
+    while let Some(entry) = bots_folder.next_entry().await? {
+        if !entry.metadata().await.unwrap().is_dir() {
+            continue;
+        }
+
+        let documents_folder_path = entry.path().join(documents_folder_name);
+        let mut document_folder = tokio::fs::read_dir(documents_folder_path).await.unwrap();
+
+        while let Some(file) = document_folder.next_entry().await? {
+            let metadata = file.metadata().await.unwrap();
+
+            if metadata.created()?.elapsed().unwrap().as_secs() > 3600 {
+                let _ = tokio::fs::remove_file(file.path()).await;
+            }
+        }
+    }
+
+    Ok(())
 }
