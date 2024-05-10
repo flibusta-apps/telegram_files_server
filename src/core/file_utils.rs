@@ -123,7 +123,10 @@ pub async fn clean_files() -> Result<(), Box<dyn Error>> {
         }
 
         let documents_folder_path = entry.path().join(documents_folder_name);
-        let mut document_folder = tokio::fs::read_dir(documents_folder_path).await.unwrap();
+        let mut document_folder = match tokio::fs::read_dir(documents_folder_path.clone()).await {
+            Ok(v) => v,
+            Err(err) => panic!("Path: {:?}, Error: {:?}", documents_folder_path, err),
+        };
 
         while let Some(file) = document_folder.next_entry().await? {
             let metadata = file.metadata().await.unwrap();
