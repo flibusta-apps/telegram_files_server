@@ -136,7 +136,10 @@ pub async fn clean_files() -> Result<(), Box<dyn Error>> {
             let metadata = file.metadata().await.unwrap();
 
             if metadata.created()?.elapsed().unwrap().as_secs() > 3600 {
-                let _ = tokio::fs::remove_file(file.path()).await;
+                match tokio::fs::remove_file(file.path()).await {
+                    Ok(_) => log::info!("File {:?} removed", file.path()),
+                    Err(err) => log::error!("Error: {}", err),
+                }
             }
         }
     }
