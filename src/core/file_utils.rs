@@ -123,6 +123,10 @@ pub async fn clean_files() -> Result<(), Box<dyn Error>> {
         }
 
         let documents_folder_path = entry.path().join(documents_folder_name);
+        if !documents_folder_path.exists() {
+            continue;
+        }
+
         let mut document_folder = match tokio::fs::read_dir(documents_folder_path.clone()).await {
             Ok(v) => v,
             Err(err) => panic!("Path: {:?}, Error: {:?}", documents_folder_path, err),
