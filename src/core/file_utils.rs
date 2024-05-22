@@ -90,6 +90,12 @@ pub async fn download_file(chat_id: i64, message_id: i32) -> Result<Option<File>
                 }
             }
 
+            if let teloxide::RequestError::Api(ref err) = err {
+                if let teloxide::ApiError::MessageIdInvalid = err {
+                    return Ok(None);
+                }
+            }
+
             log::error!("Error: {}", err);
             return Err(Box::new(err));
         }
