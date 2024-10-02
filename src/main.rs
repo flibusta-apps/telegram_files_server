@@ -35,7 +35,7 @@ async fn cron_jobs() {
 
 #[tokio::main]
 async fn main() {
-    dotenv::dotenv().ok();
+    dotenvy::dotenv().ok();
 
     let options = ClientOptions {
         dsn: Some(Dsn::from_str(&config::CONFIG.sentry_dsn).unwrap()),
