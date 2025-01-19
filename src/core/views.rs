@@ -46,7 +46,7 @@ pub async fn get_router() -> Router {
 
     let app_router = Router::new()
         .route("/upload/", post(upload))
-        .route("/download_by_message/:chat_id/:message_id", get(download))
+        .route("/download_by_message/{chat_id}/{message_id}", get(download))
         .layer(DefaultBodyLimit::max(BODY_LIMIT))
         .layer(middleware::from_fn(auth))
         .layer(prometheus_layer);
@@ -55,8 +55,8 @@ pub async fn get_router() -> Router {
         Router::new().route("/metrics", get(|| async move { metric_handle.render() }));
 
     Router::new()
-        .nest("/api/v1/files", app_router)
-        .nest("/", metric_router)
+        .merge(app_router)
+        .merge(metric_router)
         .layer(
             TraceLayer::new_for_http()
                 .make_span_with(trace::DefaultMakeSpan::new().level(Level::INFO))
