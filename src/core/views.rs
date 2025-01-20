@@ -45,8 +45,8 @@ pub async fn get_router() -> Router {
     let (prometheus_layer, metric_handle) = PrometheusMetricLayer::pair();
 
     let app_router = Router::new()
-        .route("/upload/", post(upload))
-        .route("/download_by_message/{chat_id}/{message_id}", get(download))
+        .route("/api/v1/files/upload/", post(upload))
+        .route("/api/v1/files/download_by_message/{chat_id}/{message_id}", get(download))
         .layer(DefaultBodyLimit::max(BODY_LIMIT))
         .layer(middleware::from_fn(auth))
         .layer(prometheus_layer);
