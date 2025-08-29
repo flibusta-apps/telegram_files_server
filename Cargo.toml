@@ -26,7 +26,7 @@ axum = { version = "0.8.1", features = ["multipart"] }
 axum_typed_multipart = "0.16.3"
 
 tracing = "0.1.41"
-tracing-subscriber = { version = "0.3.19", features = ["env-filter"]}
+tracing-subscriber = { version = "0.3.20", features = ["env-filter"]}
 tower-http = { version = "0.6.2", features = ["trace"] }
 sentry-tracing = "0.41.0"
 
