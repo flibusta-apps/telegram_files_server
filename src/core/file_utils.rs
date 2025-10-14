@@ -1,6 +1,7 @@
 use std::error::Error;
 
 use axum::body::Bytes;
+use moka::future::Cache;
 use once_cell::sync::Lazy;
 use serde::Serialize;
 use teloxide::{
@@ -9,7 +10,6 @@ use teloxide::{
 };
 use tokio::fs::File;
 use tracing::log;
-use moka::future::Cache;
 
 use super::bot::ROUND_ROBIN_BOT;
 use crate::config::CONFIG;
@@ -44,7 +44,6 @@ pub static TEMP_FILES_CACHE: Lazy<Cache<i32, MessageId>> = Lazy::new(|| {
         .build()
 });
 
-
 pub async fn upload_file(
     file: Bytes,
     filename: String,
@@ -70,7 +69,6 @@ pub async fn upload_file(
     }
 }
 
-
 pub async fn download_file(chat_id: i64, message_id: i32) -> Result<Option<File>, Box<dyn Error>> {
     let bot = ROUND_ROBIN_BOT.get_bot();
 
@@ -84,16 +82,12 @@ pub async fn download_file(chat_id: i64, message_id: i32) -> Result<Option<File>
     {
         Ok(v) => v,
         Err(err) => {
-            if let teloxide::RequestError::Api(ref err) = err {
-                if let teloxide::ApiError::MessageToForwardNotFound = err {
-                    return Ok(None);
-                }
+            if let teloxide::RequestError::Api(teloxide::ApiError::MessageToForwardNotFound) = err {
+                return Ok(None);
             }
 
-            if let teloxide::RequestError::Api(ref err) = err {
-                if let teloxide::ApiError::MessageIdInvalid = err {
-                    return Ok(None);
-                }
+            if let teloxide::RequestError::Api(teloxide::ApiError::MessageIdInvalid) = err {
+                return Ok(None);
             }
 
             log::error!("Error: {}", err);
@@ -103,7 +97,9 @@ pub async fn download_file(chat_id: i64, message_id: i32) -> Result<Option<File>
 
     let file_id = forwarded_message.document().unwrap().file.id.clone();
 
-    TEMP_FILES_CACHE.insert(message_id, forwarded_message.id).await;
+    TEMP_FILES_CACHE
+        .insert(message_id, forwarded_message.id)
+        .await;
 
     let path = match bot.get_file(file_id.clone()).await {
         Ok(v) => v.path,
@@ -115,7 +111,6 @@ pub async fn download_file(chat_id: i64, message_id: i32) -> Result<Option<File>
 
     Ok(Some(File::open(path).await?))
 }
-
 
 pub async fn clean_files() -> Result<(), Box<dyn Error>> {
     let bots_folder = "/var/lib/telegram-bot-api/";
