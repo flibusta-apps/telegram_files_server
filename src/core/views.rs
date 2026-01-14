@@ -11,15 +11,14 @@ use axum_prometheus::PrometheusMetricLayer;
 use axum_typed_multipart::{TryFromMultipart, TypedMultipart};
 use tokio_util::io::ReaderStream;
 use tower_http::trace::{self, TraceLayer};
-use tracing::Level;
 use tracing::log;
+use tracing::Level;
 
 use crate::config::CONFIG;
 
 use super::file_utils::{download_file, upload_file};
 
 const BODY_LIMIT: usize = 4 * (2 << 30); // bytes: 4GB
-
 
 async fn auth(req: Request<axum::body::Body>, next: Next) -> Result<Response, StatusCode> {
     let auth_header = req
@@ -40,13 +39,15 @@ async fn auth(req: Request<axum::body::Body>, next: Next) -> Result<Response, St
     Ok(next.run(req).await)
 }
 
-
 pub async fn get_router() -> Router {
     let (prometheus_layer, metric_handle) = PrometheusMetricLayer::pair();
 
     let app_router = Router::new()
         .route("/api/v1/files/upload/", post(upload))
-        .route("/api/v1/files/download_by_message/{chat_id}/{message_id}", get(download))
+        .route(
+            "/api/v1/files/download_by_message/{chat_id}/{message_id}",
+            get(download),
+        )
         .layer(DefaultBodyLimit::max(BODY_LIMIT))
         .layer(middleware::from_fn(auth))
         .layer(prometheus_layer);
@@ -54,16 +55,18 @@ pub async fn get_router() -> Router {
     let metric_router =
         Router::new().route("/metrics", get(|| async move { metric_handle.render() }));
 
+    let health_router = Router::new().route("/health", get(health));
+
     Router::new()
         .merge(app_router)
         .merge(metric_router)
+        .merge(health_router)
         .layer(
             TraceLayer::new_for_http()
                 .make_span_with(trace::DefaultMakeSpan::new().level(Level::INFO))
                 .on_response(trace::DefaultOnResponse::new().level(Level::INFO)),
         )
 }
-
 
 #[derive(TryFromMultipart)]
 pub struct UploadFileRequest {
@@ -72,7 +75,6 @@ pub struct UploadFileRequest {
     filename: String,
     caption: Option<String>,
 }
-
 
 async fn upload(data: TypedMultipart<UploadFileRequest>) -> impl IntoResponse {
     let result = match upload_file(
@@ -89,17 +91,19 @@ async fn upload(data: TypedMultipart<UploadFileRequest>) -> impl IntoResponse {
     result.unwrap()
 }
 
+async fn health() -> impl IntoResponse {
+    StatusCode::OK
+}
+
 async fn download(Path((chat_id, message_id)): Path<(i64, i32)>) -> impl IntoResponse {
     let file = match download_file(chat_id, message_id).await {
-        Ok(v) => {
-            match v {
-                Some(v) => v,
-                None => return StatusCode::NO_CONTENT.into_response(),
-            }
+        Ok(v) => match v {
+            Some(v) => v,
+            None => return StatusCode::NO_CONTENT.into_response(),
         },
         Err(err) => {
             log::error!("{}", err);
-            return StatusCode::INTERNAL_SERVER_ERROR.into_response()
+            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
         }
     };
 
