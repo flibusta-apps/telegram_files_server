@@ -2,13 +2,12 @@ mod config;
 mod core;
 
 use core::file_utils::clean_files;
-use std::{net::SocketAddr, str::FromStr};
 use sentry::{integrations::debug_images::DebugImagesIntegration, types::Dsn, ClientOptions};
 use sentry_tracing::EventFilter;
+use std::{net::SocketAddr, str::FromStr};
 use tracing_subscriber::{filter, layer::SubscriberExt, util::SubscriberInitExt};
 
 use crate::core::views::get_router;
-
 
 async fn start_app() {
     let addr = SocketAddr::from(([0, 0, 0, 0], 8080));
@@ -21,7 +20,6 @@ async fn start_app() {
     println!("Webserver shutdown...");
 }
 
-
 async fn cron_jobs() {
     let mut interval = tokio::time::interval(std::time::Duration::from_secs(5 * 60));
 
@@ -31,7 +29,6 @@ async fn cron_jobs() {
         let _ = clean_files().await;
     }
 }
-
 
 #[tokio::main]
 async fn main() {

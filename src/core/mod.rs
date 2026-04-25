@@ -1,3 +1,3 @@
 pub mod bot;
-pub mod views;
 pub mod file_utils;
+pub mod views;

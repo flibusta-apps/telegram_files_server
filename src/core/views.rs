@@ -74,13 +74,20 @@ pub struct UploadFileRequest {
     file: Bytes,
     filename: String,
     caption: Option<String>,
+    file_type: Option<String>,
 }
 
 async fn upload(data: TypedMultipart<UploadFileRequest>) -> impl IntoResponse {
+    let chat_id = match data.file_type.as_deref() {
+        Some("audiobook") => CONFIG.telegram_audio_chat_id,
+        _ => CONFIG.telegram_chat_id,
+    };
+
     let result = match upload_file(
         data.file.clone(),
         data.filename.to_string(),
         data.caption.clone(),
+        chat_id,
     )
     .await
     {

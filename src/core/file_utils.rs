@@ -48,11 +48,12 @@ pub async fn upload_file(
     file: Bytes,
     filename: String,
     caption: Option<String>,
+    chat_id: i64,
 ) -> Result<UploadedFile, String> {
     let bot = ROUND_ROBIN_BOT.get_bot();
     let document = InputFile::memory(file).file_name(filename);
 
-    let mut request = bot.send_document(ChatId(CONFIG.telegram_chat_id), document);
+    let mut request = bot.send_document(ChatId(chat_id), document);
     request.caption = caption;
 
     let result = request.await;

@@ -1,7 +1,10 @@
-use std::{sync::{
-    atomic::{AtomicUsize, Ordering},
-    Arc,
-}, time::Duration};
+use std::{
+    sync::{
+        atomic::{AtomicUsize, Ordering},
+        Arc,
+    },
+    time::Duration,
+};
 
 use once_cell::sync::Lazy;
 use teloxide::Bot;
@@ -31,10 +34,8 @@ impl RoundRobinBot {
             .build()
             .unwrap();
 
-        Bot::with_client(
-            self.bot_tokens[index].clone(),
-            client
-        ).set_api_url(reqwest::Url::parse(CONFIG.telegram_api_url.as_str()).unwrap())
+        Bot::with_client(self.bot_tokens[index].clone(), client)
+            .set_api_url(reqwest::Url::parse(CONFIG.telegram_api_url.as_str()).unwrap())
     }
 }
 
