@@ -11,12 +11,11 @@ use axum_prometheus::PrometheusMetricLayer;
 use axum_typed_multipart::{TryFromMultipart, TypedMultipart};
 use tokio_util::io::ReaderStream;
 use tower_http::trace::{self, TraceLayer};
-use tracing::log;
 use tracing::Level;
 
 use crate::config::CONFIG;
-
-use super::file_utils::{download_file, upload_file};
+use crate::core::errors::FileError;
+use crate::core::file_utils::{download_file, upload_file};
 
 const BODY_LIMIT: usize = 4 * (2 << 30); // bytes: 4GB
 
@@ -77,44 +76,33 @@ pub struct UploadFileRequest {
     file_type: Option<String>,
 }
 
-async fn upload(data: TypedMultipart<UploadFileRequest>) -> impl IntoResponse {
+async fn upload(data: TypedMultipart<UploadFileRequest>) -> Result<impl IntoResponse, FileError> {
     let chat_id = match data.file_type.as_deref() {
         Some("audiobook") => CONFIG.telegram_audio_chat_id,
         _ => CONFIG.telegram_chat_id,
     };
 
-    let result = match upload_file(
+    let result = upload_file(
         data.file.clone(),
         data.filename.to_string(),
         data.caption.clone(),
         chat_id,
     )
-    .await
-    {
-        Ok(file) => serde_json::to_string(&file),
-        Err(err) => Ok(err),
-    };
+    .await?;
 
-    result.unwrap()
+    Ok(serde_json::to_string(&result).unwrap())
 }
 
 async fn health() -> impl IntoResponse {
     StatusCode::OK
 }
 
-async fn download(Path((chat_id, message_id)): Path<(i64, i32)>) -> impl IntoResponse {
-    let file = match download_file(chat_id, message_id).await {
-        Ok(v) => match v {
-            Some(v) => v,
-            None => return StatusCode::NO_CONTENT.into_response(),
-        },
-        Err(err) => {
-            log::error!("{}", err);
-            return StatusCode::INTERNAL_SERVER_ERROR.into_response();
-        }
+async fn download(Path((chat_id, message_id)): Path<(i64, i32)>) -> Result<Response, FileError> {
+    let file = match download_file(chat_id, message_id).await? {
+        Some(file) => file,
+        None => return Ok(StatusCode::NO_CONTENT.into_response()),
     };
 
     let reader = ReaderStream::new(file);
-
-    axum::body::Body::from_stream(reader).into_response()
+    Ok(axum::body::Body::from_stream(reader).into_response())
 }
