@@ -11,7 +11,7 @@ use axum_prometheus::PrometheusMetricLayer;
 use axum_typed_multipart::{TryFromMultipart, TypedMultipart};
 use tokio_util::io::ReaderStream;
 use tower_http::trace::{self, TraceLayer};
-use tracing::Level;
+use tracing::{error, Level};
 
 use crate::config::CONFIG;
 use crate::core::errors::FileError;
@@ -98,7 +98,10 @@ async fn health() -> impl IntoResponse {
 }
 
 async fn download(Path((chat_id, message_id)): Path<(i64, i32)>) -> Result<Response, FileError> {
-    let file = match download_file(chat_id, message_id).await? {
+    let file = match download_file(chat_id, message_id).await.map_err(|err| {
+        error!(%chat_id, %message_id, error = %err, "Failed to download file");
+        err
+    })? {
         Some(file) => file,
         None => return Ok(StatusCode::NO_CONTENT.into_response()),
     };
