@@ -1,7 +1,11 @@
-#! /usr/bin/env sh
+#!/usr/bin/env sh
 
-response=`curl -X 'GET' "https://$VAULT_HOST/v1/$VAULT_SECRET_PATH" -s \
-  -H 'accept: application/json' \
-  -H "X-Vault-Token: $VAULT_TOKEN"`
+# Outputs all required env vars in .env format.
+# Variables must already be set in the environment.
 
-echo "$(echo "$response" | jq -r '.data.data | to_entries | map("\(.key)='\''\(.value)'\''") | .[]')"
+for var in API_KEY API_URL TELEGRAM_CHAT_ID TELEGRAM_TEMP_CHAT_ID BOT_TOKENS SENTRY_DSN; do
+  eval "val=\$$var"
+  if [ -n "$val" ]; then
+    echo "${var}='${val}'"
+  fi
+done

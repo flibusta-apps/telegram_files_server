@@ -26,7 +26,7 @@ The app requires these env vars at startup (loaded via `dotenvy` from `.env` loc
 - `BOT_TOKENS` — JSON array of bot token strings, e.g. `["token1","token2"]`
 - `SENTRY_DSN` — Sentry project DSN
 
-In production, `scripts/env.sh` fetches these from HashiCorp Vault and writes `.env` before starting the binary.
+In production, `scripts/env.sh` writes the environment variables to `.env` before starting the binary. Variables must already be set in the container's environment.
 
 ## Architecture
 
