@@ -128,13 +128,14 @@ fn is_wrong_file_id_unknown(msg: &str) -> bool {
 }
 
 pub async fn upload_file(
-    file: Bytes,
+    file: SpooledData,
     filename: String,
     caption: Option<String>,
     chat_id: i64,
 ) -> Result<UploadedFile, FileError> {
     let bot = ROUND_ROBIN_BOT.get_bot();
-    let document = InputFile::memory(file).file_name(filename);
+    let document: InputFile = file.into();
+    let document = document.file_name(filename);
 
     let mut request = bot.send_document(ChatId(chat_id), document);
     request.caption = caption;
