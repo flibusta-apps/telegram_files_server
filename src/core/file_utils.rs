@@ -33,15 +33,15 @@ pub struct MessageInfo {
     pub message_id: i32,
 }
 
-const SPOOL_THRESHOLD: usize = 10 * 1024 * 1024; // 10 MB
+pub const SPOOL_THRESHOLD: usize = 10 * 1024 * 1024; // 10 MB
 
-enum SpooledData {
+pub enum SpooledData {
     Memory(Vec<u8>),
     OnDisk(NamedTempFile),
 }
 
 impl SpooledData {
-    async fn from_multipart_field(
+    pub async fn from_multipart_field(
         mut field: axum::extract::multipart::Field<'_>,
     ) -> io::Result<Self> {
         let mut data = Vec::with_capacity(8192);

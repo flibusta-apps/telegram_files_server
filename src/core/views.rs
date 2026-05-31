@@ -1,6 +1,5 @@
 use axum::{
-    body::Bytes,
-    extract::{DefaultBodyLimit, Path},
+    extract::{DefaultBodyLimit, Multipart, Path},
     http::{self, Request, StatusCode},
     middleware::{self, Next},
     response::{IntoResponse, Response},
@@ -8,14 +7,13 @@ use axum::{
     Router,
 };
 use axum_prometheus::PrometheusMetricLayer;
-use axum_typed_multipart::{TryFromMultipart, TypedMultipart};
 use tokio_util::io::ReaderStream;
 use tower_http::trace::{self, TraceLayer};
-use tracing::{error, Level};
+use tracing::{error, info, Level};
 
 use crate::config::CONFIG;
 use crate::core::errors::FileError;
-use crate::core::file_utils::{download_file, upload_file};
+use crate::core::file_utils::{download_file, upload_file, SpooledData};
 
 const BODY_LIMIT: usize = 4 * (2 << 30); // bytes: 4GB
 
@@ -67,25 +65,66 @@ pub async fn get_router() -> Router {
         )
 }
 
-#[derive(TryFromMultipart)]
-pub struct UploadFileRequest {
-    #[form_data(limit = "unlimited")]
-    file: Bytes,
-    filename: String,
-    caption: Option<String>,
-    file_type: Option<String>,
-}
+async fn upload(mut multipart: Multipart) -> Result<impl IntoResponse, FileError> {
+    let mut spooled: Option<SpooledData> = None;
+    let mut filename: Option<String> = None;
+    let mut caption: Option<String> = None;
+    let mut file_type: Option<String> = None;
 
-async fn upload(data: TypedMultipart<UploadFileRequest>) -> Result<impl IntoResponse, FileError> {
-    let chat_id = match data.file_type.as_deref() {
+    while let Some(field) = multipart
+        .next_field()
+        .await
+        .map_err(|e| FileError::FileUnavailable(format!("multipart error: {e}")))?
+    {
+        let name = field.name().unwrap_or("").to_string();
+
+        match name.as_str() {
+            "file" => {
+                filename = Some(field.file_name().unwrap_or("unknown").to_string());
+                spooled = Some(
+                    SpooledData::from_multipart_field(field)
+                        .await
+                        .map_err(|e| {
+                            FileError::FileUnavailable(format!("failed to read file: {e}"))
+                        })?,
+                );
+            }
+            "filename" => {
+                filename =
+                    Some(field.text().await.map_err(|e| {
+                        FileError::FileUnavailable(format!("multipart error: {e}"))
+                    })?);
+            }
+            "caption" => {
+                caption =
+                    Some(field.text().await.map_err(|e| {
+                        FileError::FileUnavailable(format!("multipart error: {e}"))
+                    })?);
+            }
+            "file_type" => {
+                file_type =
+                    Some(field.text().await.map_err(|e| {
+                        FileError::FileUnavailable(format!("multipart error: {e}"))
+                    })?);
+            }
+            _ => {
+                info!(name = %name, "ignoring unknown multipart field");
+            }
+        }
+    }
+
+    let spooled = spooled
+        .ok_or_else(|| FileError::FileUnavailable("missing required field: file".to_string()))?;
+
+    let chat_id = match file_type.as_deref() {
         Some("audiobook") => CONFIG.telegram_audio_chat_id,
         _ => CONFIG.telegram_chat_id,
     };
 
     let result = upload_file(
-        data.file.clone(),
-        data.filename.to_string(),
-        data.caption.clone(),
+        spooled,
+        filename.unwrap_or_else(|| "unknown".to_string()),
+        caption,
         chat_id,
     )
     .await?;
