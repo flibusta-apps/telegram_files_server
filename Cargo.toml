@@ -49,4 +49,5 @@ reqwest = { version = "0.12.15", features = [
     "multipart",
 ], default-features = false }
 moka = { version = "0.12.10", features = ["future"] }
+tempfile = "3"
 thiserror = "2"
