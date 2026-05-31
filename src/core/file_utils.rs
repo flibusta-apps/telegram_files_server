@@ -1,6 +1,7 @@
+use std::io::{self, Write};
 use std::time::Duration;
 
-use axum::body::Bytes;
+use bytes::Bytes;
 use moka::future::Cache;
 use once_cell::sync::Lazy;
 use serde::Serialize;
@@ -8,6 +9,7 @@ use teloxide::{
     requests::Requester,
     types::{ChatId, InputFile, MessageId, Recipient},
 };
+use tempfile::NamedTempFile;
 use tokio::fs::File;
 use tracing::log;
 
@@ -29,6 +31,53 @@ pub struct UploadedFile {
 pub struct MessageInfo {
     pub chat_id: i64,
     pub message_id: i32,
+}
+
+const SPOOL_THRESHOLD: usize = 10 * 1024 * 1024; // 10 MB
+
+enum SpooledData {
+    Memory(Vec<u8>),
+    OnDisk(NamedTempFile),
+}
+
+impl SpooledData {
+    async fn from_multipart_field(
+        mut field: axum::extract::multipart::Field<'_>,
+    ) -> io::Result<Self> {
+        let mut data = Vec::with_capacity(8192);
+        let mut on_disk: Option<NamedTempFile> = None;
+
+        while let Some(chunk) = field.chunk().await.map_err(io::Error::other)? {
+            if let Some(ref mut file) = on_disk {
+                file.write_all(&chunk)?;
+            } else {
+                data.extend_from_slice(&chunk);
+                if data.len() > SPOOL_THRESHOLD {
+                    let mut temp = NamedTempFile::new()?;
+                    temp.write_all(&data)?;
+                    on_disk = Some(temp);
+                    data.clear();
+                }
+            }
+        }
+
+        match on_disk {
+            Some(file) => Ok(SpooledData::OnDisk(file)),
+            None => Ok(SpooledData::Memory(data)),
+        }
+    }
+}
+
+impl From<SpooledData> for InputFile {
+    fn from(spooled: SpooledData) -> Self {
+        match spooled {
+            SpooledData::Memory(data) => InputFile::memory(Bytes::from(data)),
+            SpooledData::OnDisk(file) => {
+                let path = file.path().to_path_buf();
+                InputFile::file(path)
+            }
+        }
+    }
 }
 
 pub static TEMP_FILES_CACHE: Lazy<Cache<i32, MessageId>> = Lazy::new(|| {

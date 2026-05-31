@@ -2855,6 +2855,7 @@ dependencies = [
  "axum",
  "axum-prometheus",
  "axum_typed_multipart",
+ "bytes",
  "dotenvy",
  "futures",
  "moka",
