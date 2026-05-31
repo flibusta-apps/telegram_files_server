@@ -80,7 +80,11 @@ async fn upload(mut multipart: Multipart) -> Result<impl IntoResponse, FileError
 
         match name.as_str() {
             "file" => {
-                filename = Some(field.file_name().unwrap_or("unknown").to_string());
+                // Only use Content-Disposition filename as fallback.
+                // An explicit "filename" field always takes priority.
+                if filename.is_none() {
+                    filename = Some(field.file_name().unwrap_or("unknown").to_string());
+                }
                 spooled = Some(
                     SpooledData::from_multipart_field(field)
                         .await

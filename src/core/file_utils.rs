@@ -68,18 +68,6 @@ impl SpooledData {
     }
 }
 
-impl From<SpooledData> for InputFile {
-    fn from(spooled: SpooledData) -> Self {
-        match spooled {
-            SpooledData::Memory(data) => InputFile::memory(Bytes::from(data)),
-            SpooledData::OnDisk(file) => {
-                let path = file.path().to_path_buf();
-                InputFile::file(path)
-            }
-        }
-    }
-}
-
 pub static TEMP_FILES_CACHE: Lazy<Cache<i32, MessageId>> = Lazy::new(|| {
     Cache::builder()
         .time_to_idle(Duration::from_secs(16))
@@ -134,7 +122,12 @@ pub async fn upload_file(
     chat_id: i64,
 ) -> Result<UploadedFile, FileError> {
     let bot = ROUND_ROBIN_BOT.get_bot();
-    let document: InputFile = file.into();
+    // Build InputFile from a reference so that the NamedTempFile (if present)
+    // remains alive until after the API call completes.
+    let document = match &file {
+        SpooledData::Memory(data) => InputFile::memory(Bytes::from(data.clone())),
+        SpooledData::OnDisk(temp) => InputFile::file(temp.path().to_path_buf()),
+    };
     let document = document.file_name(filename);
 
     let mut request = bot.send_document(ChatId(chat_id), document);
@@ -152,6 +145,9 @@ pub async fn upload_file(
                 FileError::TelegramApi(err)
             }
         })?;
+
+    // `file` lives until here; NamedTempFile drops after API call and deletes backing file.
+    let _ = file;
 
     Ok(UploadedFile {
         backend: "bot".to_string(),
