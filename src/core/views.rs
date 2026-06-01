@@ -15,7 +15,7 @@ use crate::config::CONFIG;
 use crate::core::errors::FileError;
 use crate::core::file_utils::{download_file, upload_file, SpooledData};
 
-const BODY_LIMIT: usize = 4 * (2 << 30); // bytes: 4GB
+const BODY_LIMIT: usize = 4 * (1 << 30); // bytes: 4GB
 
 async fn auth(req: Request<axum::body::Body>, next: Next) -> Result<Response, StatusCode> {
     let auth_header = req
