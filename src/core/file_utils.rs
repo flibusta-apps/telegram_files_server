@@ -122,11 +122,13 @@ pub async fn upload_file(
     chat_id: i64,
 ) -> Result<UploadedFile, FileError> {
     let bot = ROUND_ROBIN_BOT.get_bot();
-    // Build InputFile from a reference so that the NamedTempFile (if present)
-    // remains alive until after the API call completes.
-    let document = match &file {
-        SpooledData::Memory(data) => InputFile::memory(Bytes::from(data.clone())),
-        SpooledData::OnDisk(temp) => InputFile::file(temp.path().to_path_buf()),
+    // Move `file` into the match so that:
+    // - Memory variant avoids an unnecessary clone (data is moved into Bytes).
+    // - OnDisk variant keeps the NamedTempFile alive until after the API call
+    //   completes (temp file is deleted on drop).
+    let document = match file {
+        SpooledData::Memory(data) => InputFile::memory(Bytes::from(data)),
+        SpooledData::OnDisk(ref temp) => InputFile::file(temp.path().to_path_buf()),
     };
     let document = document.file_name(filename);
 
@@ -146,8 +148,8 @@ pub async fn upload_file(
             }
         })?;
 
-    // `file` lives until here; NamedTempFile drops after API call and deletes backing file.
-    let _ = file;
+    // `file` (and its NamedTempFile, if any) lives until end of scope —
+    // the temp file is deleted on drop, which happens after the API call completes.
 
     Ok(UploadedFile {
         backend: "bot".to_string(),
