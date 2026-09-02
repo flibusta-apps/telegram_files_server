@@ -7,9 +7,9 @@ Rust web server (Axum + teloxide) that acts as a file proxy: uploads files to Te
 ## Commands
 
 ```bash
-cargo fmt                  # format (required, pre-commit enforced)
-cargo clippy               # lint (required, pre-commit + CI enforced)
-cargo check                # typecheck (required, pre-commit enforced)
+cargo fmt                  # format (required, lefthook enforced)
+cargo clippy               # lint (required, lefthook + CI enforced)
+cargo check                # typecheck (required, lefthook enforced)
 cargo build --release      # production build
 ```
 
@@ -48,5 +48,5 @@ A background cron (`clean_files`) every 5 minutes removes files older than 1 hou
 ## Gotchas
 
 - `cargo clippy` must pass — it runs with `--all-features` in CI
-- Pre-commit hooks enforce `fmt`, `cargo check`, and `clippy`
+- Lefthook hooks enforce `fmt`, `cargo check`, and `clippy`
 - Production Docker image uses `linux/amd64` only
