@@ -1,13 +1,13 @@
-FROM rust:bullseye AS builder
+FROM rust:bookworm AS builder
 
 WORKDIR /app
 
 COPY . .
 
-RUN cargo build --release --bin telegram_files_server
+RUN cargo build --release --locked --bin telegram_files_server
 
 
-FROM debian:bullseye-slim
+FROM debian:bookworm-slim
 
 RUN apt-get update \
     && apt-get install -y openssl ca-certificates \

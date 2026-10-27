@@ -7,6 +7,9 @@ use axum::{
     Router,
 };
 use axum_prometheus::PrometheusMetricLayer;
+use once_cell::sync::Lazy;
+use subtle::ConstantTimeEq;
+use tokio::sync::Semaphore;
 use tokio_util::io::ReaderStream;
 use tower_http::trace::{self, TraceLayer};
 use tracing::{error, info, Level};
@@ -15,7 +18,12 @@ use crate::config::CONFIG;
 use crate::core::errors::FileError;
 use crate::core::file_utils::{download_file, upload_file, SpooledData};
 
-const BODY_LIMIT: usize = 4 * (1 << 30); // bytes: 4GB
+/// Slack on top of the max file size for multipart framing and text fields.
+const BODY_OVERHEAD: usize = 1024 * 1024;
+const MAX_TEXT_FIELD_SIZE: usize = 64 * 1024;
+
+static UPLOAD_SEMAPHORE: Lazy<Semaphore> =
+    Lazy::new(|| Semaphore::new(CONFIG.max_concurrent_uploads));
 
 async fn auth(req: Request<axum::body::Body>, next: Next) -> Result<Response, StatusCode> {
     let auth_header = req
@@ -29,7 +37,7 @@ async fn auth(req: Request<axum::body::Body>, next: Next) -> Result<Response, St
         return Err(StatusCode::UNAUTHORIZED);
     };
 
-    if auth_header != CONFIG.api_key {
+    if !bool::from(auth_header.as_bytes().ct_eq(CONFIG.api_key.as_bytes())) {
         return Err(StatusCode::UNAUTHORIZED);
     }
 
@@ -45,7 +53,9 @@ pub async fn get_router() -> Router {
             "/api/v1/files/download_by_message/{chat_id}/{message_id}",
             get(download),
         )
-        .layer(DefaultBodyLimit::max(BODY_LIMIT))
+        .layer(DefaultBodyLimit::max(
+            CONFIG.max_upload_size + BODY_OVERHEAD,
+        ))
         .layer(middleware::from_fn(auth))
         .layer(prometheus_layer);
 
@@ -65,17 +75,43 @@ pub async fn get_router() -> Router {
         )
 }
 
+fn multipart_error(e: axum::extract::multipart::MultipartError) -> FileError {
+    if e.status() == StatusCode::PAYLOAD_TOO_LARGE {
+        FileError::TooLarge(format!("multipart error: {e}"))
+    } else {
+        FileError::BadRequest(format!("multipart error: {e}"))
+    }
+}
+
+/// Reads a small text field, rejecting anything over `MAX_TEXT_FIELD_SIZE`.
+async fn read_text_field(
+    mut field: axum::extract::multipart::Field<'_>,
+) -> Result<String, FileError> {
+    let mut buf: Vec<u8> = Vec::new();
+    while let Some(chunk) = field.chunk().await.map_err(multipart_error)? {
+        if buf.len() + chunk.len() > MAX_TEXT_FIELD_SIZE {
+            return Err(FileError::TooLarge(format!(
+                "text field exceeds {MAX_TEXT_FIELD_SIZE} bytes"
+            )));
+        }
+        buf.extend_from_slice(&chunk);
+    }
+    String::from_utf8(buf)
+        .map_err(|_| FileError::BadRequest("text field is not valid UTF-8".to_string()))
+}
+
 async fn upload(mut multipart: Multipart) -> Result<impl IntoResponse, FileError> {
+    let _permit = UPLOAD_SEMAPHORE
+        .acquire()
+        .await
+        .map_err(|_| FileError::Unavailable("upload limiter closed".to_string()))?;
+
     let mut spooled: Option<SpooledData> = None;
     let mut filename: Option<String> = None;
     let mut caption: Option<String> = None;
     let mut file_type: Option<String> = None;
 
-    while let Some(field) = multipart
-        .next_field()
-        .await
-        .map_err(|e| FileError::FileUnavailable(format!("multipart error: {e}")))?
-    {
+    while let Some(field) = multipart.next_field().await.map_err(multipart_error)? {
         let name = field.name().unwrap_or("").to_string();
 
         match name.as_str() {
@@ -85,40 +121,20 @@ async fn upload(mut multipart: Multipart) -> Result<impl IntoResponse, FileError
                 if filename.is_none() {
                     filename = Some(field.file_name().unwrap_or("unknown").to_string());
                 }
-                spooled = Some(
-                    SpooledData::from_multipart_field(field)
-                        .await
-                        .map_err(|e| {
-                            FileError::FileUnavailable(format!("failed to read file: {e}"))
-                        })?,
-                );
+                spooled =
+                    Some(SpooledData::from_multipart_field(field, CONFIG.max_upload_size).await?);
             }
-            "filename" => {
-                filename =
-                    Some(field.text().await.map_err(|e| {
-                        FileError::FileUnavailable(format!("multipart error: {e}"))
-                    })?);
-            }
-            "caption" => {
-                caption =
-                    Some(field.text().await.map_err(|e| {
-                        FileError::FileUnavailable(format!("multipart error: {e}"))
-                    })?);
-            }
-            "file_type" => {
-                file_type =
-                    Some(field.text().await.map_err(|e| {
-                        FileError::FileUnavailable(format!("multipart error: {e}"))
-                    })?);
-            }
+            "filename" => filename = Some(read_text_field(field).await?),
+            "caption" => caption = Some(read_text_field(field).await?),
+            "file_type" => file_type = Some(read_text_field(field).await?),
             _ => {
                 info!(name = %name, "ignoring unknown multipart field");
             }
         }
     }
 
-    let spooled = spooled
-        .ok_or_else(|| FileError::FileUnavailable("missing required field: file".to_string()))?;
+    let spooled =
+        spooled.ok_or_else(|| FileError::BadRequest("missing required field: file".to_string()))?;
 
     let chat_id = match file_type.as_deref() {
         Some("audiobook") => CONFIG.telegram_audio_chat_id,
@@ -141,7 +157,7 @@ async fn health() -> impl IntoResponse {
 }
 
 async fn download(Path((chat_id, message_id)): Path<(i64, i32)>) -> Result<Response, FileError> {
-    let file = match download_file(chat_id, message_id).await.map_err(|err| {
+    let (file, len) = match download_file(chat_id, message_id).await.map_err(|err| {
         error!(%chat_id, %message_id, error = %err, "Failed to download file");
         err
     })? {
@@ -150,5 +166,15 @@ async fn download(Path((chat_id, message_id)): Path<(i64, i32)>) -> Result<Respo
     };
 
     let reader = ReaderStream::new(file);
-    Ok(axum::body::Body::from_stream(reader).into_response())
+    Ok((
+        [
+            (
+                http::header::CONTENT_TYPE,
+                "application/octet-stream".to_string(),
+            ),
+            (http::header::CONTENT_LENGTH, len.to_string()),
+        ],
+        axum::body::Body::from_stream(reader),
+    )
+        .into_response())
 }
