@@ -10,7 +10,6 @@ debug = false
 strip = true
 lto = true
 codegen-units = 1
-panic = 'abort'
 
 [profile.profiling]
 inherits = "release"
@@ -48,7 +47,7 @@ reqwest = { version = "0.12.15", features = [
     "stream",
     "multipart",
 ], default-features = false }
-moka = { version = "0.12.10", features = ["future"] }
 tempfile = "3"
 bytes = "1"
 thiserror = "2"
+subtle = "2.6.1"

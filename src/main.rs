@@ -5,7 +5,7 @@ use core::file_utils::clean_files;
 use sentry::{integrations::debug_images::DebugImagesIntegration, types::Dsn, ClientOptions};
 use sentry_tracing::EventFilter;
 use std::{net::SocketAddr, str::FromStr};
-use tracing_subscriber::{filter, layer::SubscriberExt, util::SubscriberInitExt};
+use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
 use crate::core::views::get_router;
 
@@ -16,8 +16,35 @@ async fn start_app() {
 
     println!("Start webserver...");
     let listener = tokio::net::TcpListener::bind(&addr).await.unwrap();
-    axum::serve(listener, app).await.unwrap();
+    axum::serve(listener, app)
+        .with_graceful_shutdown(shutdown_signal())
+        .await
+        .unwrap();
     println!("Webserver shutdown...");
+}
+
+async fn shutdown_signal() {
+    let ctrl_c = async {
+        tokio::signal::ctrl_c().await.ok();
+    };
+
+    #[cfg(unix)]
+    let terminate = async {
+        if let Ok(mut sig) =
+            tokio::signal::unix::signal(tokio::signal::unix::SignalKind::terminate())
+        {
+            sig.recv().await;
+        } else {
+            std::future::pending::<()>().await;
+        }
+    };
+    #[cfg(not(unix))]
+    let terminate = std::future::pending::<()>();
+
+    tokio::select! {
+        _ = ctrl_c => {},
+        _ = terminate => {},
+    }
 }
 
 async fn cron_jobs() {
@@ -26,7 +53,14 @@ async fn cron_jobs() {
     loop {
         interval.tick().await;
 
-        let _ = clean_files().await;
+        match clean_files().await {
+            Ok(stats) => tracing::info!(
+                removed = stats.removed,
+                errors = stats.errors,
+                "clean_files pass finished"
+            ),
+            Err(err) => tracing::error!("clean_files pass failed: {err}"),
+        }
     }
 }
 
@@ -36,7 +70,6 @@ async fn main() {
 
     let options = ClientOptions {
         dsn: Some(Dsn::from_str(&config::CONFIG.sentry_dsn).unwrap()),
-        default_integrations: false,
         ..Default::default()
     }
     .add_integration(DebugImagesIntegration::new());
@@ -50,9 +83,16 @@ async fn main() {
 
     tracing_subscriber::registry()
         .with(tracing_subscriber::fmt::layer().with_target(false))
-        .with(filter::LevelFilter::INFO)
+        .with(EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info")))
         .with(sentry_layer)
         .init();
 
-    tokio::join![cron_jobs(), start_app()];
+    // Validate configuration up front (exits with a clear error if invalid).
+    once_cell::sync::Lazy::force(&config::CONFIG);
+    once_cell::sync::Lazy::force(&core::bot::ROUND_ROBIN_BOT);
+
+    tokio::select! {
+        _ = cron_jobs() => {},
+        _ = start_app() => {},
+    }
 }

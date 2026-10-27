@@ -13,7 +13,7 @@ cargo check                # typecheck (required, lefthook enforced)
 cargo build --release      # production build
 ```
 
-No tests exist in this repo yet.
+Unit tests: `cargo test` (error→HTTP status mapping, not-found classification).
 
 ## Environment
 
@@ -22,9 +22,19 @@ The app requires these env vars at startup (loaded via `dotenvy` from `.env` loc
 - `API_KEY` — auth key for API endpoints
 - `API_URL` — Telegram Bot API base URL
 - `TELEGRAM_CHAT_ID` — target chat for file uploads (i64)
+- `TELEGRAM_AUDIO_CHAT_ID` — chat used for uploads with `file_type=audiobook` (i64)
 - `TELEGRAM_TEMP_CHAT_ID` — temp chat used for download forwarding (i64)
 - `BOT_TOKENS` — JSON array of bot token strings, e.g. `["token1","token2"]`
 - `SENTRY_DSN` — Sentry project DSN
+
+Optional (must be > 0 if set):
+
+- `UPLOAD_TIMEOUT_SECS` — timeout of the Telegram upload call (default 600, → 504)
+- `MAX_UPLOAD_SIZE` — max uploaded file size in bytes (default 2 GiB, → 413)
+- `MAX_CONCURRENT_UPLOADS` — concurrent upload limit (default 4)
+- `RUST_LOG` — log filter (default `info`)
+
+`API_KEY` must be non-empty, `API_URL` a valid URL and `BOT_TOKENS` a non-empty JSON array; otherwise the app refuses to start.
 
 In production, `scripts/env.sh` writes the environment variables to `.env` before starting the binary. Variables must already be set in the container's environment.
 
@@ -33,8 +43,8 @@ In production, `scripts/env.sh` writes the environment variables to `.env` befor
 - `src/main.rs` — entrypoint: sets up Sentry, tracing, runs web server + cron concurrently via `tokio::join!`
 - `src/config.rs` — once-cell lazy config from env vars
 - `src/core/bot.rs` — round-robin bot pool across multiple bot tokens
-- `src/core/views.rs` — Axum routes + auth middleware; 4 GB body limit for uploads
-- `src/core/file_utils.rs` — upload/download logic, moka cache for temp forwarded messages with auto-eviction that deletes the forwarded message from Telegram
+- `src/core/views.rs` — Axum routes + auth middleware; body limit = MAX_UPLOAD_SIZE (+1 MiB)
+- `src/core/file_utils.rs` — upload/download logic, forwarded temp messages are deleted by a spawned task ~16s after forward
 
 Key routes: `POST /api/v1/files/upload/`, `GET /api/v1/files/download_by_message/{chat_id}/{message_id}`, `GET /health`, `GET /metrics`
 
