@@ -2784,7 +2784,7 @@ dependencies = [
  "thiserror",
  "tokio",
  "tokio-util",
- "tower-http 0.6.11",
+ "tower-http 0.7.1",
  "tracing",
  "tracing-subscriber",
 ]
@@ -3032,7 +3032,6 @@ dependencies = [
  "tower",
  "tower-layer",
  "tower-service",
- "tracing",
  "url",
 ]
 
@@ -3045,10 +3044,12 @@ dependencies = [
  "bitflags 2.13.2",
  "bytes",
  "http 1.5.0",
+ "http-body",
  "percent-encoding",
  "pin-project-lite",
  "tower-layer",
  "tower-service",
+ "tracing",
 ]
 
 [[package]]
