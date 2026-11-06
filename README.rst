@@ -12,8 +12,9 @@ Cloud ``api.telegram.org`` URLs are rejected at startup: downloads open the
 Bot API data volume into this service at the same absolute path (normally
 ``/var/lib/telegram-bot-api``).
 
-The production image runs as UID/GID ``10001:10001``. Shared files must be
-readable and their parent directories traversable by UID 10001. The cleanup
+The production image runs as UID/GID ``101:101`` (same as the ``telegram-bot-api`` user
+of the aiogram/telegram-bot-api image, which owns the shared volume). Shared files must be
+readable and their parent directories traversable by UID 101. The cleanup
 job also requires write permission on the Bot API documents directories.
 Temporary upload spools use the container's writable temporary directory.
 

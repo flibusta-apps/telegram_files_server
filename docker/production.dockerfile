@@ -14,8 +14,8 @@ RUN apt-get update \
     && rm -rf /var/lib/apt/lists/*
 
 RUN update-ca-certificates
-RUN groupadd --gid 10001 app \
-    && useradd --uid 10001 --gid 10001 --no-create-home --shell /usr/sbin/nologin app
+RUN groupadd --gid 101 app \
+    && useradd --uid 101 --gid 101 --no-create-home --shell /usr/sbin/nologin app
 
 COPY ./scripts/*.sh /
 RUN chmod +x /*.sh
@@ -23,5 +23,6 @@ RUN chmod +x /*.sh
 WORKDIR /app
 
 COPY --from=builder /app/target/release/telegram_files_server /usr/local/bin
-USER 10001:10001
+# Match the telegram-bot-api user (aiogram/telegram-bot-api) that owns the shared volume.
+USER 101:101
 ENTRYPOINT ["/start.sh"]

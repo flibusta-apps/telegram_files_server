@@ -39,7 +39,7 @@ Optional (must be > 0 if set):
 
 `API_KEY` must be non-empty, `API_URL` a valid URL and `BOT_TOKENS` a non-empty JSON array; otherwise the app refuses to start.
 
-In production, `scripts/start.sh` executes the binary directly using the container environment; secrets are not written to disk. The image runs as UID/GID 10001. The shared Bot API volume must be readable/traversable by that UID; cleanup also needs write permissions on the documents directories.
+In production, `scripts/start.sh` executes the binary directly using the container environment; secrets are not written to disk. The image runs as UID/GID 101 (the telegram-bot-api user that owns the shared volume). The shared Bot API volume must be readable/traversable by that UID; cleanup also needs write permissions on the documents directories.
 
 ## Architecture
 
