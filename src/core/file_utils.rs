@@ -56,11 +56,7 @@ impl SpooledData {
         let mut on_disk: Option<(File, TempPath)> = None;
         let mut total: usize = 0;
 
-        while let Some(chunk) = field
-            .chunk()
-            .await
-            .map_err(|e| FileError::BadRequest(format!("failed to read file: {e}")))?
-        {
+        while let Some(chunk) = field.chunk().await.map_err(super::views::multipart_error)? {
             total += chunk.len();
             if total > max_size {
                 return Err(FileError::TooLarge(format!(
@@ -246,13 +242,26 @@ pub async fn download_file(
         None => return Ok(None),
     };
 
-    let path = retry_request(TELEGRAM_API_TIMEOUT, "get_file", not_timeout, || {
-        bot.get_file(file_id.clone()).send()
-    })
-    .await?
-    .path;
+    let mut retried_open = false;
+    let file = loop {
+        let path = retry_request(
+            Duration::from_secs(CONFIG.get_file_timeout_secs),
+            "get_file",
+            not_timeout,
+            || bot.get_file(file_id.clone()).send(),
+        )
+        .await?
+        .path;
 
-    let file = File::open(path).await?;
+        match File::open(path).await {
+            Ok(file) => break file,
+            Err(err) if err.kind() == std::io::ErrorKind::NotFound && !retried_open => {
+                // Cleanup may have unlinked the cached file after getFile returned.
+                retried_open = true;
+            }
+            Err(err) => return Err(err.into()),
+        }
+    };
     let len = file.metadata().await?.len();
     Ok(Some((file, len)))
 }

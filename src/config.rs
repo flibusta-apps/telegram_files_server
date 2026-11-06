@@ -51,6 +51,9 @@ pub struct Config {
     pub sentry_dsn: String,
 
     pub upload_timeout_secs: u64,
+    pub upload_permit_timeout_secs: u64,
+    pub upload_body_idle_timeout_secs: u64,
+    pub get_file_timeout_secs: u64,
     pub max_upload_size: usize,
     pub max_concurrent_uploads: usize,
 }
@@ -60,7 +63,7 @@ impl Config {
         let api_key = get_non_empty_env("API_KEY")?;
 
         let telegram_api_url = get_non_empty_env("API_URL")?;
-        reqwest::Url::parse(&telegram_api_url).map_err(|e| format!("Invalid API_URL: {e}"))?;
+        validate_api_url(&telegram_api_url)?;
 
         let bot_tokens: Vec<String> = serde_json::from_str(&get_env("BOT_TOKENS")?)
             .map_err(|e| format!("BOT_TOKENS must be a JSON array of strings: {e}"))?;
@@ -77,10 +80,24 @@ impl Config {
             bot_tokens,
             sentry_dsn: get_env("SENTRY_DSN")?,
             upload_timeout_secs: parse_env_or("UPLOAD_TIMEOUT_SECS", 600)?,
+            upload_permit_timeout_secs: parse_env_or("UPLOAD_PERMIT_TIMEOUT_SECS", 60)?,
+            upload_body_idle_timeout_secs: parse_env_or("UPLOAD_BODY_IDLE_TIMEOUT_SECS", 60)?,
+            get_file_timeout_secs: parse_env_or("GET_FILE_TIMEOUT_SECS", 600)?,
             max_upload_size: parse_env_or("MAX_UPLOAD_SIZE", 2usize * 1024 * 1024 * 1024)?,
             max_concurrent_uploads: parse_env_or("MAX_CONCURRENT_UPLOADS", 4)?,
         })
     }
+}
+
+fn validate_api_url(value: &str) -> Result<(), String> {
+    let url = reqwest::Url::parse(value).map_err(|e| format!("Invalid API_URL: {e}"))?;
+    if url.host_str().is_some_and(|host| {
+        host.trim_end_matches('.')
+            .eq_ignore_ascii_case("api.telegram.org")
+    }) {
+        return Err("API_URL must point to a local Telegram Bot API server running with --local and a shared volume; api.telegram.org cloud mode is not supported".into());
+    }
+    Ok(())
 }
 
 pub static CONFIG: Lazy<Config> = Lazy::new(|| {
@@ -89,3 +106,15 @@ pub static CONFIG: Lazy<Config> = Lazy::new(|| {
         std::process::exit(1);
     })
 });
+
+#[cfg(test)]
+mod tests {
+    use super::validate_api_url;
+
+    #[test]
+    fn local_api_required() {
+        assert!(validate_api_url("https://api.telegram.org").is_err());
+        assert!(validate_api_url("https://API.TELEGRAM.ORG./").is_err());
+        assert!(validate_api_url("http://telegram-bot-api:8081").is_ok());
+    }
+}

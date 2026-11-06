@@ -16,6 +16,10 @@ pub enum FileError {
     #[error("Timeout: {0}")]
     Timeout(String),
 
+    /// The incoming upload body stopped making progress (HTTP 408).
+    #[error("Request timeout: {0}")]
+    RequestTimeout(String),
+
     /// Telegram / network is temporarily unavailable (HTTP 503).
     #[error("Temporarily unavailable: {0}")]
     Unavailable(String),
@@ -95,6 +99,9 @@ impl IntoResponse for FileError {
             FileError::Timeout(_) => {
                 (StatusCode::GATEWAY_TIMEOUT, self.to_string()).into_response()
             }
+            FileError::RequestTimeout(_) => {
+                (StatusCode::REQUEST_TIMEOUT, self.to_string()).into_response()
+            }
             FileError::Unavailable(_) => {
                 (StatusCode::SERVICE_UNAVAILABLE, self.to_string()).into_response()
             }
@@ -142,6 +149,10 @@ mod tests {
         assert_eq!(
             status(FileError::Timeout("x".into())),
             StatusCode::GATEWAY_TIMEOUT
+        );
+        assert_eq!(
+            status(FileError::RequestTimeout("x".into())),
+            StatusCode::REQUEST_TIMEOUT
         );
         assert_eq!(
             status(FileError::Unavailable("x".into())),

@@ -17,10 +17,10 @@ Unit tests: `cargo test` (error→HTTP status mapping, not-found classification)
 
 ## Environment
 
-The app requires these env vars at startup (loaded via `dotenvy` from `.env` locally):
+The app reads these env vars at startup (an optional local `.env` is loaded by `dotenvy`; no `.env` file is required or generated):
 
 - `API_KEY` — auth key for API endpoints
-- `API_URL` — Telegram Bot API base URL
+- `API_URL` — local Telegram Bot API base URL (`--local` required, cloud `api.telegram.org` is rejected). The Bot API data directory must be shared at the same absolute path with this service.
 - `TELEGRAM_CHAT_ID` — target chat for file uploads (i64)
 - `TELEGRAM_AUDIO_CHAT_ID` — chat used for uploads with `file_type=audiobook` (i64)
 - `TELEGRAM_TEMP_CHAT_ID` — temp chat used for download forwarding (i64)
@@ -30,13 +30,16 @@ The app requires these env vars at startup (loaded via `dotenvy` from `.env` loc
 Optional (must be > 0 if set):
 
 - `UPLOAD_TIMEOUT_SECS` — timeout of the Telegram upload call (default 600, → 504)
+- `UPLOAD_PERMIT_TIMEOUT_SECS` — maximum upload concurrency permit wait (default 60, → 503)
+- `UPLOAD_BODY_IDLE_TIMEOUT_SECS` — maximum incoming body idle time without non-empty data (default 60, → 408)
+- `GET_FILE_TIMEOUT_SECS` — timeout of each Telegram getFile call (default 600, → 504)
 - `MAX_UPLOAD_SIZE` — max uploaded file size in bytes (default 2 GiB, → 413)
 - `MAX_CONCURRENT_UPLOADS` — concurrent upload limit (default 4)
 - `RUST_LOG` — log filter (default `info`)
 
 `API_KEY` must be non-empty, `API_URL` a valid URL and `BOT_TOKENS` a non-empty JSON array; otherwise the app refuses to start.
 
-In production, `scripts/env.sh` writes the environment variables to `.env` before starting the binary. Variables must already be set in the container's environment.
+In production, `scripts/start.sh` executes the binary directly using the container environment; secrets are not written to disk. The image runs as UID/GID 10001. The shared Bot API volume must be readable/traversable by that UID; cleanup also needs write permissions on the documents directories.
 
 ## Architecture
 
@@ -47,6 +50,8 @@ In production, `scripts/env.sh` writes the environment variables to `.env` befor
 - `src/core/file_utils.rs` — upload/download logic, forwarded temp messages are deleted by a spawned task ~16s after forward
 
 Key routes: `POST /api/v1/files/upload/`, `GET /api/v1/files/download_by_message/{chat_id}/{message_id}`, `GET /health`, `GET /metrics`
+
+All routes except `/health` require `Authorization: Bearer <API_KEY>` or the raw `Authorization: <API_KEY>` form, including `/metrics`.
 
 A background cron (`clean_files`) every 5 minutes removes files older than 1 hour from `/var/lib/telegram-bot-api/documents/`.
 

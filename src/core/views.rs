@@ -7,7 +7,9 @@ use axum::{
     Router,
 };
 use axum_prometheus::PrometheusMetricLayer;
+use futures::StreamExt;
 use once_cell::sync::Lazy;
+use std::time::Duration;
 use subtle::ConstantTimeEq;
 use tokio::sync::Semaphore;
 use tokio_util::io::ReaderStream;
@@ -37,6 +39,7 @@ async fn auth(req: Request<axum::body::Body>, next: Next) -> Result<Response, St
         return Err(StatusCode::UNAUTHORIZED);
     };
 
+    let auth_header = auth_header.strip_prefix("Bearer ").unwrap_or(auth_header);
     if !bool::from(auth_header.as_bytes().ct_eq(CONFIG.api_key.as_bytes())) {
         return Err(StatusCode::UNAUTHORIZED);
     }
@@ -48,7 +51,10 @@ pub async fn get_router() -> Router {
     let (prometheus_layer, metric_handle) = PrometheusMetricLayer::pair();
 
     let app_router = Router::new()
-        .route("/api/v1/files/upload/", post(upload))
+        .route(
+            "/api/v1/files/upload/",
+            post(upload).layer(middleware::from_fn(upload_body_timeout)),
+        )
         .route(
             "/api/v1/files/download_by_message/{chat_id}/{message_id}",
             get(download),
@@ -59,8 +65,9 @@ pub async fn get_router() -> Router {
         .layer(middleware::from_fn(auth))
         .layer(prometheus_layer);
 
-    let metric_router =
-        Router::new().route("/metrics", get(|| async move { metric_handle.render() }));
+    let metric_router = Router::new()
+        .route("/metrics", get(|| async move { metric_handle.render() }))
+        .layer(middleware::from_fn(auth));
 
     let health_router = Router::new().route("/health", get(health));
 
@@ -75,7 +82,48 @@ pub async fn get_router() -> Router {
         )
 }
 
-fn multipart_error(e: axum::extract::multipart::MultipartError) -> FileError {
+#[derive(Debug, thiserror::Error)]
+#[error("upload body idle timeout")]
+struct UploadIdleTimeout;
+
+async fn upload_body_timeout(req: Request<axum::body::Body>, next: Next) -> Response {
+    let (parts, body) = req.into_parts();
+    let body = idle_timeout_body(
+        body,
+        Duration::from_secs(CONFIG.upload_body_idle_timeout_secs),
+    );
+    next.run(Request::from_parts(parts, body)).await
+}
+
+fn idle_timeout_body(body: axum::body::Body, idle: Duration) -> axum::body::Body {
+    let stream = futures::stream::unfold(Some(body.into_data_stream()), move |state| async move {
+        let mut stream = state?;
+        let next = tokio::time::timeout(idle, async {
+            loop {
+                match stream.next().await {
+                    Some(Ok(bytes)) if bytes.is_empty() => continue,
+                    item => break item,
+                }
+            }
+        })
+        .await;
+        match next {
+            Ok(Some(item)) => Some((item, Some(stream))),
+            Ok(None) => None,
+            Err(_) => Some((Err(axum::Error::new(UploadIdleTimeout)), None)),
+        }
+    });
+    axum::body::Body::from_stream(stream)
+}
+
+pub(super) fn multipart_error(e: axum::extract::multipart::MultipartError) -> FileError {
+    let mut source: Option<&(dyn std::error::Error + 'static)> = Some(&e);
+    while let Some(err) = source {
+        if err.is::<UploadIdleTimeout>() {
+            return FileError::RequestTimeout("upload body idle timeout".into());
+        }
+        source = err.source();
+    }
     if e.status() == StatusCode::PAYLOAD_TOO_LARGE {
         FileError::TooLarge(format!("multipart error: {e}"))
     } else {
@@ -101,10 +149,13 @@ async fn read_text_field(
 }
 
 async fn upload(mut multipart: Multipart) -> Result<impl IntoResponse, FileError> {
-    let _permit = UPLOAD_SEMAPHORE
-        .acquire()
-        .await
-        .map_err(|_| FileError::Unavailable("upload limiter closed".to_string()))?;
+    let _permit = tokio::time::timeout(
+        Duration::from_secs(CONFIG.upload_permit_timeout_secs),
+        UPLOAD_SEMAPHORE.acquire(),
+    )
+    .await
+    .map_err(|_| FileError::Unavailable("upload permit wait timed out".into()))?
+    .map_err(|_| FileError::Unavailable("upload limiter closed".to_string()))?;
 
     let mut spooled: Option<SpooledData> = None;
     let mut filename: Option<String> = None;
@@ -177,4 +228,58 @@ async fn download(Path((chat_id, message_id)): Path<(i64, i32)>) -> Result<Respo
         axum::body::Body::from_stream(reader),
     )
         .into_response())
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use axum::{body::Body, extract::FromRequest};
+    use bytes::Bytes;
+
+    async fn stalled_multipart(prefix: &'static str) -> Multipart {
+        let stream =
+            futures::stream::once(async move { Ok::<_, std::io::Error>(Bytes::from(prefix)) })
+                .chain(futures::stream::pending());
+        let req = Request::builder()
+            .header("content-type", "multipart/form-data; boundary=test")
+            .body(idle_timeout_body(
+                Body::from_stream(stream),
+                Duration::from_millis(10),
+            ))
+            .unwrap();
+        Multipart::from_request(req, &()).await.unwrap()
+    }
+
+    #[tokio::test]
+    async fn idle_timeout_while_waiting_for_boundary() {
+        let mut multipart = stalled_multipart("").await;
+        let err = multipart.next_field().await.unwrap_err();
+        assert!(matches!(multipart_error(err), FileError::RequestTimeout(_)));
+    }
+
+    #[tokio::test]
+    async fn idle_timeout_while_reading_file() {
+        let mut multipart = stalled_multipart(
+            "--test\r\nContent-Disposition: form-data; name=\"file\"; filename=\"x\"\r\n\r\ndata",
+        )
+        .await;
+        let field = multipart.next_field().await.unwrap().unwrap();
+        assert!(matches!(
+            SpooledData::from_multipart_field(field, 1024).await,
+            Err(FileError::RequestTimeout(_))
+        ));
+    }
+
+    #[tokio::test]
+    async fn idle_timeout_while_reading_text() {
+        let mut multipart = stalled_multipart(
+            "--test\r\nContent-Disposition: form-data; name=\"caption\"\r\n\r\ndata",
+        )
+        .await;
+        let field = multipart.next_field().await.unwrap().unwrap();
+        assert!(matches!(
+            read_text_field(field).await,
+            Err(FileError::RequestTimeout(_))
+        ));
+    }
 }
