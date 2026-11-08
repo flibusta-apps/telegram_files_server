@@ -1,9 +1,9 @@
 mod config;
 mod core;
+mod telemetry;
 
 use core::file_utils::clean_files;
 use sentry::{integrations::debug_images::DebugImagesIntegration, types::Dsn, ClientOptions};
-use sentry_tracing::EventFilter;
 use std::{net::SocketAddr, str::FromStr};
 use tracing_subscriber::{layer::SubscriberExt, util::SubscriberInitExt, EnvFilter};
 
@@ -68,22 +68,18 @@ async fn cron_jobs() {
 async fn main() {
     dotenvy::dotenv().ok();
 
-    let options = ClientOptions {
-        dsn: Some(Dsn::from_str(&config::CONFIG.sentry_dsn).unwrap()),
-        ..Default::default()
-    }
-    .add_integration(DebugImagesIntegration::new());
+    let mut options = ClientOptions::default();
+    options.dsn = Some(Dsn::from_str(&config::CONFIG.sentry_dsn).unwrap());
+    let options = options.add_integration(DebugImagesIntegration::new());
 
     let _guard = sentry::init(options);
 
-    let sentry_layer = sentry_tracing::layer().event_filter(|md| match md.level() {
-        &tracing::Level::ERROR => EventFilter::Event,
-        _ => EventFilter::Ignore,
-    });
+    let sentry_layer = telemetry::error_layer();
 
     tracing_subscriber::registry()
         .with(tracing_subscriber::fmt::layer().with_target(false))
         .with(EnvFilter::try_from_default_env().unwrap_or_else(|_| EnvFilter::new("info")))
+        .with(telemetry::span_layer())
         .with(sentry_layer)
         .init();
 

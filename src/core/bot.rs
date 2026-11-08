@@ -12,7 +12,7 @@ pub struct RoundRobinBot {
 
 impl RoundRobinBot {
     pub fn new() -> Self {
-        let client = reqwest::Client::builder()
+        let client = telegram_reqwest::Client::builder()
             .connect_timeout(std::time::Duration::from_secs(5))
             .timeout(std::time::Duration::from_secs(
                 CONFIG.upload_timeout_secs + 10,

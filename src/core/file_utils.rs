@@ -97,7 +97,7 @@ impl SpooledData {
 async fn retry_request<F, Fut, T>(
     timeout: Duration,
     what: &str,
-    retry_network: fn(&reqwest::Error) -> bool,
+    retry_network: fn(&telegram_reqwest::Error) -> bool,
     f: F,
 ) -> Result<T, FileError>
 where
@@ -138,16 +138,82 @@ where
     }
 }
 
-fn never_retry(_: &reqwest::Error) -> bool {
+fn never_retry(_: &telegram_reqwest::Error) -> bool {
     false
 }
 
-fn only_connect(e: &reqwest::Error) -> bool {
+fn only_connect(e: &telegram_reqwest::Error) -> bool {
     e.is_connect()
 }
 
-fn not_timeout(e: &reqwest::Error) -> bool {
+fn not_timeout(e: &telegram_reqwest::Error) -> bool {
     !e.is_timeout()
+}
+
+#[cfg(test)]
+mod dependency_boundary_tests {
+    use super::*;
+    use std::sync::atomic::{AtomicUsize, Ordering};
+
+    async fn connect_error() -> RequestError {
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let addr = listener.local_addr().unwrap();
+        drop(listener);
+        let error = telegram_reqwest::Client::builder()
+            .no_proxy()
+            .build()
+            .unwrap()
+            .get(format!("http://{addr}"))
+            .send()
+            .await
+            .unwrap_err();
+        assert!(error.is_connect());
+        RequestError::Network(error.into())
+    }
+
+    #[tokio::test]
+    async fn teloxide_network_errors_keep_retry_policy_across_reqwest_versions() {
+        let error = connect_error().await;
+        let calls = AtomicUsize::new(0);
+        let result = retry_request(Duration::from_secs(5), "upload", never_retry, || {
+            calls.fetch_add(1, Ordering::SeqCst);
+            std::future::ready(Err::<(), _>(error.clone()))
+        })
+        .await;
+        assert!(result.is_err());
+        assert_eq!(calls.load(Ordering::SeqCst), 1);
+
+        let calls = AtomicUsize::new(0);
+        let result = retry_request(Duration::from_secs(5), "copy", only_connect, || {
+            std::future::ready(if calls.fetch_add(1, Ordering::SeqCst) == 0 {
+                Err(error.clone())
+            } else {
+                Ok(())
+            })
+        })
+        .await;
+        assert!(result.is_ok());
+        assert_eq!(calls.load(Ordering::SeqCst), 2);
+    }
+
+    #[tokio::test]
+    async fn telegram_response_timeouts_are_not_retryable() {
+        // Keep a local socket listening, without replying to HTTP requests.
+        let listener = std::net::TcpListener::bind("127.0.0.1:0").unwrap();
+        let error = telegram_reqwest::Client::builder()
+            .no_proxy()
+            .timeout(Duration::from_millis(50))
+            .build()
+            .unwrap()
+            .get(format!("http://{}", listener.local_addr().unwrap()))
+            .send()
+            .await
+            .unwrap_err();
+        assert!(error.is_timeout());
+        assert!(!never_retry(&error));
+        assert!(!only_connect(&error));
+        assert!(!not_timeout(&error));
+    }
 }
 
 pub async fn upload_file(
